@@ -1,0 +1,7 @@
+/.idea/
+/assets/elasticsearch-7.9.2/
+/assets/wikidata-20200203-truthy-uri-tridentdb/
+/data/warcs/
+/data/sample.warc.gz
+/data/sample-labels-cheat.txt
+/data/sample_annotations.tsv
