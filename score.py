@@ -1,5 +1,3 @@
-"""HEY"""
-
 import sys
 
 gold_file = sys.argv[1]
