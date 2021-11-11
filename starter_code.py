@@ -1,5 +1,6 @@
 import gzip
 
+
 KEYNAME = "WARC-TREC-ID"
 
 # The goal of this function process the webpage and returns a list of labels -> entity ID
