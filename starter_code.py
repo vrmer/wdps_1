@@ -1,6 +1,6 @@
 import gzip
 
-KEYNAME = "WARC-TREC-ID"
+KEYNAME = "WARC-Record-ID"
 
 # The goal of this function process the webpage and returns a list of labels -> entity ID
 def find_labels(payload):
