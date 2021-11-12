@@ -16,19 +16,29 @@ KBPATH='assets/wikidata-20200203-truthy-uri-tridentdb'
 
 nlp = spacy.load("en_core_web_sm")
 
+# def split_records(stream):
+#     payload = []
+#     for idx,line in enumerate(stream):
+#         print(line.strip())
+#         if "WARC-Target-URI" in line.strip():
+#             line_split = line.split("URI: ")[1]
+#             clean_line = line_split.split("\n")[0]
+#             payload.append(clean_line)
+#
+#         if idx > 5000:
+#             return payload
+#
+#     return payload
+
 def split_records(stream):
-    payload = []
-    for idx,line in enumerate(stream):
-        print(line.strip())
-        if "WARC-Target-URI" in line.strip():
-            line_split = line.split("URI: ")[1]
-            clean_line = line_split.split("\n")[0]
-            payload.append(clean_line)
-
-        if idx > 5000:
-            return payload
-
-    return payload
+    payload = ''
+    for line in stream:
+        if line.strip() == "WARC/1.0":
+            yield payload
+            payload = ''
+        else:
+            payload += line
+    yield payload
 
 def read_warc_files():
 
@@ -40,6 +50,7 @@ def read_warc_files():
         r = requests.get(url,timeout=10)
         html_code = r.text
         clean_text = html2text(html_code)
+        print(clean_text)
         doc = nlp(clean_text)
         doc_dict = []
         for ent in doc.ents:
@@ -62,7 +73,6 @@ def search(query):
     e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/")
     p = { "query" : { "query_string" : { "query" : query }}}
     response = e.search(index="wikidata_en", body=json.dumps(p))
-    #id_labels = {}
     id_labels = []
     if response:
         for hit in response['hits']['hits']:
@@ -72,37 +82,34 @@ def search(query):
             id_labels.append(id)
     return id_labels
 
-def link_lookup(url, entity):
+def link_lookup(url):
 
-    entity_page = url.split("/")[-1][:-1]
-
+    # QUERIES FOR SPARQL, NOT NEEDED
     # query = "PREFIX wde: <http://www.wikidata.org/entity/> " \
     #         "PREFIX wdp: <http://www.wikidata.org/prop/direct/> " \
     #         "PREFIX wdpn: <http://www.wikidata.org/prop/direct-normalized/> " \
-    #             "select ?s where { ?s wdp:P31 wde:" + entity_page + " . } LIMIT 10"
+    #             "select ?s where { ?s wdp:P31 wde:Q145 . } LIMIT 10"
 
-    #query = "PREFIX wde: <http://www.wikidata.org/entity/" + entity_page + "> " \
+    #query = "PREFIX wde: <http://www.wikidata.org/entity/> " \
     #        "SELECT DISTINCT ?v WHERE { ?v ?p wde:"+ entity + " . } "
-
-    query = '''PREFIX wde: <http://www.wikidata.org/entity/''' + entity_page + '''> '''\
-            '''SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }'''
 
 
     # Load the KB
     db = trident.Db(KBPATH)
-    url = "<https://www.wikidata.org/wiki/Q145>"
-    print("Looking for Entity Number: ", entity_page)
+    # url = "<http://www.wikidata.org/entity/Q145>"
     print("URL: ", url)
-    # results = db.sparql(query)
-    term_id = db.search_id(url)
+
+    term_id = db.lookup_id(url)
     print("Term id: ", term_id)
-    indegree = db.indegree(term_id)
+    po = db.po(term_id) # returns relations, such as P31 or http://www.wikidata.org/prop/direct/P279
+    print(po)
+    relation = db.lookup_str(po[5][0])
 
+    print(relation)
 
-    print(indegree)
     exit(1)
 
-
+#results = db.sparql(query)
 def entity_linking():
 
     with open('entity_lists/list_of_entities_gua_1.txt', 'rb') as fp:
@@ -118,7 +125,7 @@ def entity_linking():
 
         for url in list_of_urls:
             print(list_of_urls)
-            link_lookup(url, entity["Entity"])
+            link_lookup(url)
 
         exit(1)
 
