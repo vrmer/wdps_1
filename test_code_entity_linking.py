@@ -19,12 +19,13 @@ nlp = spacy.load("en_core_web_sm")
 def split_records(stream):
     payload = []
     for idx,line in enumerate(stream):
+        print(line.strip())
         if "WARC-Target-URI" in line.strip():
             line_split = line.split("URI: ")[1]
             clean_line = line_split.split("\n")[0]
             payload.append(clean_line)
 
-        if idx > 10000:
+        if idx > 5000:
             return payload
 
     return payload
@@ -32,7 +33,7 @@ def split_records(stream):
 def read_warc_files():
 
     with gzip.open(INPUT_FILE, 'rt', errors='ignore') as fo:
-        #webpage_urls = split_records(fo)
+        webpage_urls = split_records(fo)
         #print(len(webpage_urls))
         #url = webpage_urls[0]
         url = "https://www.theguardian.com/sport/2021/nov/09/emma-raducanu-torben-beltz-tennis-coach-upper-austria-ladies-linz"
@@ -49,8 +50,8 @@ def read_warc_files():
             dict["End"] = ent.end_char
             doc_dict.append(dict)
 
-        with open('entity_lists/list_of_entities_gua_1.txt', 'wb') as fp:
-            pickle.dump(doc_dict, fp)
+        #with open('entity_lists/list_of_entities_gua_1.txt', 'wb') as fp:
+        #    pickle.dump(doc_dict, fp)
 
         ## To read
         #with open('entity_lists/list_of_entities_nu_1.txt', 'rb') as fp:
@@ -71,38 +72,35 @@ def search(query):
             id_labels.append(id)
     return id_labels
 
-def link_lookup(url):
+def link_lookup(url, entity):
 
     entity_page = url.split("/")[-1][:-1]
 
-    query = "PREFIX wde: <http://www.wikidata.org/entity/> " \
-            "PREFIX wdp: <http://www.wikidata.org/prop/direct/> " \
-            "PREFIX wdpn: <http://www.wikidata.org/prop/direct-normalized/> " \
-                "select ?s where { ?s wdp:P31 wde:" + entity_page + " . } LIMIT 10"
+    # query = "PREFIX wde: <http://www.wikidata.org/entity/> " \
+    #         "PREFIX wdp: <http://www.wikidata.org/prop/direct/> " \
+    #         "PREFIX wdpn: <http://www.wikidata.org/prop/direct-normalized/> " \
+    #             "select ?s where { ?s wdp:P31 wde:" + entity_page + " . } LIMIT 10"
+
+    #query = "PREFIX wde: <http://www.wikidata.org/entity/" + entity_page + "> " \
+    #        "SELECT DISTINCT ?v WHERE { ?v ?p wde:"+ entity + " . } "
+
+    query = '''PREFIX wde: <http://www.wikidata.org/entity/''' + entity_page + '''> '''\
+            '''SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }'''
+
 
     # Load the KB
     db = trident.Db(KBPATH)
-    results = db.sparql(query)
+    url = "<https://www.wikidata.org/wiki/Q145>"
+    print("Looking for Entity Number: ", entity_page)
+    print("URL: ", url)
+    # results = db.sparql(query)
+    term_id = db.search_id(url)
+    print("Term id: ", term_id)
+    indegree = db.indegree(term_id)
 
-    print(results)
+
+    print(indegree)
     exit(1)
-
-    json_results = json.loads(results)
-
-    print("*** VARIABLES ***")
-    variables = json_results["head"]["vars"]
-    print(variables)
-
-    print("\n*** BINDINGS ***")
-    results = json_results["results"]
-    for b in results["bindings"]:
-        line = ""
-        for var in variables:
-            line += var + ": " + b[var]["value"] + " "
-        print(line)
-
-    print("\n*** STATISTICS ***")
-    print(json_results['stats'])
 
 
 def entity_linking():
@@ -119,7 +117,8 @@ def entity_linking():
             continue
 
         for url in list_of_urls:
-            link_lookup(url)
+            print(list_of_urls)
+            link_lookup(url, entity["Entity"])
 
         exit(1)
 
