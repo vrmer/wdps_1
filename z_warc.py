@@ -44,11 +44,15 @@ with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as stream:
 
     for idx, line in enumerate(stream):
 
+        # TODO: process all lines with beautifulsoup instead of < and </
+
         # how to revert skip from True to False
         if skip is True:
             if 'WARC/1.0' in line:
                 skip = False
             elif 'Content-Type: text/html' in line:
+                skip = False
+            elif '</script>' in line or '</style>' in line or '</head>' in line:
                 skip = False
             else:
                 pass
@@ -57,25 +61,30 @@ with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as stream:
             # how to revert skip from False to True
             if 'Content-Type:' in line and 'text/html' not in line:
                 skip = True
-            elif '<script>' in line or '<style>' in line:
+            elif '<script>' in line or '<style>' in line or '<head>' in line:
                 skip = True
 
             else:
-                # process candidate results
-                soup = BeautifulSoup(line, features='html5lib')
+                match = re.search(r'(^WARC-.*)|(^Content-.*)', line)
+                if match:
+                    pass
+                else:
+                    # process candidate results
+                    soup = BeautifulSoup(line, features='html5lib')
 
-                try:
-                    text = soup.body.get_text(strip=True)
-                    languages = lang_det.predict(text)
-                    if '__label__en' in languages[0]:
-                        entity_list = collect_entities(text)
-                        if entity_list:
-                            print(entity_list)
-                            print('------------------')
-                            print()
+                    try:
+                        text = soup.body.get_text(strip=True)
+                        languages = lang_det.predict(text)
+                        # carry out language detection
+                        if '__label__en' in languages[0]:
+                            entity_list = collect_entities(text)
+                            if entity_list:
+                                print(entity_list)
+                                print('------------------')
+                                print()
 
-                except:
-                    continue
+                    except:
+                        continue
 
 
     # for idx, line in enumerate(stream):
