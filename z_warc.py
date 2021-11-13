@@ -9,8 +9,155 @@ import requests
 import fasttext
 import spacy
 
+
 lang_det = fasttext.load_model('lid.176.ftz')
 nlp = spacy.load('en_core_web_sm')
+
+target_labels = {'EVENT', 'GPE', 'LOC', 'NORP', 'ORG', 'PERSON', 'PRODUCT', 'WORK_OF_ART'}
+
+
+def collect_entities(text):
+    """
+
+    :param text:
+    :return:
+    """
+    entities = []
+
+    doc = nlp(text)
+    for ent in doc.ents:
+        # languages = lang_det.predict(ent.text)
+        # if '__label__en' in languages[0]:
+        if ent.label_ in target_labels:
+            entities.append(ent.text)
+
+    return entities
+
+
+target_number = 50000
+path = 'data/warcs/CC-MAIN-20200927121105-20200927151105-00583.warc.gz'
+
+skip = False
+i = 0
+
+with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as stream:
+
+    for idx, line in enumerate(stream):
+
+        # how to revert skip from True to False
+        if skip is True:
+            if 'WARC/1.0' in line:
+                skip = False
+            elif 'Content-Type: text/html' in line:
+                skip = False
+            else:
+                pass
+
+        else:
+            # how to revert skip from False to True
+            if 'Content-Type:' in line and 'text/html' not in line:
+                skip = True
+            elif '<script>' in line or '<style>' in line:
+                skip = True
+
+            else:
+                # process candidate results
+                soup = BeautifulSoup(line, features='html5lib')
+
+                try:
+                    text = soup.body.get_text(strip=True)
+                    languages = lang_det.predict(text)
+                    if '__label__en' in languages[0]:
+                        entity_list = collect_entities(text)
+                        if entity_list:
+                            print(entity_list)
+                            print('------------------')
+                            print()
+
+                except:
+                    continue
+
+
+    # for idx, line in enumerate(stream):
+    #
+    #     while skip is True:
+    #         pass
+    #
+    #         if line.startswith('WARC/1.0'):
+    #             skip = False
+    #
+    #         elif line.startswith('Content-Type: '):
+    #             if 'text/html' in line:
+    #                 skip = False
+    #             else:
+    #                 skip = True
+
+            # if line.startswith('WARC/1.0'):
+            #     if skip is False:
+            #         skip = True
+
+        # elif not line.startswith('Content-Type: text/html'):
+        #     skip = True
+
+# contents = []
+# site = set()
+# is_text = False
+#
+# with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as stream:
+#
+#     for idx, line in enumerate(stream):
+#         if line.startswith('WARC/1.0'):
+#             if is_text is True:
+#                 for site_line in site:
+#                     soup = BeautifulSoup(site_line, features='html5lib')
+#
+#                     try:
+#                         text = soup.body.get_text(strip=True)
+#                         languages = lang_det.predict(text)
+#                         if '__label__en' in languages[0]:
+#                             entity_list = collect_entities(text)
+#                             if entity_list:
+#                                 print(entity_list)
+#                                 print('------------------')
+#                                 print()
+#
+#                     except:
+#                         continue
+#
+#                 # contents.append(site)
+#                 # print(site)
+#             site = set()
+#             is_text = False
+#         elif line.startswith('Content-Type: text/html'):
+#             is_text = True
+#             # print('Good type!')
+#         else:
+#             site.add(line)
+        # if idx == 15:
+        #     break
+        # else:
+        #     print(line)
+
+# with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as stream:
+#     for idx, line in enumerate(stream):
+#         # print(line)
+#         # TODO: find a way to skip to the next document if the content-type is not appropriate
+#         if '<!DOCTYPE html>' in line:
+#             soup = BeautifulSoup(line, features='html5lib')
+#             try:
+#                 body = soup.body
+#                 style = body.style
+#                 print(style)
+#                 text = soup.body.get_text(strip=True)
+#                 languages = lang_det.predict(text)
+#                 if '__label__en' in languages[0]:
+#                     entity_list = collect_entities(text)
+#                     if entity_list:
+#                         print(entity_list)
+#                         print('------------------')
+#                         print()
+#             except:
+#                 continue
 
 # url = "https://www.theguardian.com/sport/2021/nov/09/emma-raducanu-torben-beltz-tennis-coach-upper-austria-ladies-linz"
 
@@ -35,9 +182,6 @@ nlp = spacy.load('en_core_web_sm')
 # <title></title>
 #
 
-target_number = 50000
-path = 'data/warcs/CC-MAIN-20200927121105-20200927151105-00583.warc.gz'
-
 
 # def split_records(stream):
 #     payload = ''
@@ -57,16 +201,24 @@ def split_records(stream):
             try:
                 soup = BeautifulSoup(line, parser='html5lib')
                 text = soup.body.get_text(strip=True)
-                languages = lang_det.predict(text)
-                if '__label__en' in languages[0]:
-                    doc = nlp(text)
-                    for ent in doc.ents:
-                        print(ent.text)  # TODO: find all spacy labels and filter for the relevant ones
+                print(text)
+                # languages = lang_det.predict(text)
+                # if '__label__en' in languages[0]:
+                #     doc = nlp(text)
+                #     for ent in doc.ents:
+                #         print(ent.text)  # TODO: find all spacy labels and filter for the relevant ones
             # print(clean.strip())
-                    print('-----------------------------------')
-                    print()
+                print('-----------------------------------')
+                print()
             except:
                 continue
+        # if '<!DOCTYPE html>' in line:
+        #     try:
+        #         soup = BeautifulSoup(line, parser='html5lib')
+        #         text = soup.body.get_text(strip=True)
+        #         print(text)
+        #     except:
+        #         continue
 
 # TODO: building only NER
 # # Setting up the pipeline and entity recognizer.if model is not None:
@@ -85,8 +237,8 @@ def split_records(stream):
 #  TODO: check whether filtering for DOCTYPE will work?
 
 
-with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as fo:
-    split_records(fo)
+# with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as fo:
+#     split_records(fo)
     # for idx, record in enumerate(split_records(fo)):
     #     if idx == 15:
     #         break
