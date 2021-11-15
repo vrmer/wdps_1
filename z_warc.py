@@ -151,30 +151,31 @@ with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as stream:
     for idx, line in enumerate(stream):
         # print(line)
         # TODO: find a way to skip to the next document if the content-type is not appropriate
-        if 'WARC-RECORD-ID' in line:
-            print('YES')
+        if line.startswith('WARC-Record-ID'):
+            # print('YES')
             # print(line)
-            key = line.split(':')[1]
+            key = line.split(': ')[1].strip()
+            # print(key)
 
-        # elif '<!DOCTYPE html>' in line:
-        #     soup = BeautifulSoup(line, features='html5lib')
-        #     try:
-        #         body = soup.body
-        #         # style = body.style
-        #         text = soup.body.get_text(strip=True).strip()
-        #         text = text.replace('\ufeff', '')
-        #         if text:
-        #             languages = lang_det.predict(text)
-        #             if '__label__en' in languages[0]:
-        #                 print(key)
-        #                 print(text)
-        #             # entity_list = collect_entities(text)
-        #             # if entity_list:
-        #             #     print(entity_list)
-        #                 print('------------------')
-        #                 print()
-        #     except:
-        #         continue
+        elif '<!DOCTYPE html>' in line:
+            soup = BeautifulSoup(line, features='html5lib')
+            try:
+                body = soup.body
+                # style = body.style
+                text = soup.body.get_text(strip=True).strip()
+                text = text.replace('\ufeff', '')
+                if text:
+                    languages = lang_det.predict(text)
+                    if '__label__en' in languages[0]:
+                        print(key)
+                        print(text)
+                    # entity_list = collect_entities(text)
+                    # if entity_list:
+                    #     print(entity_list)
+                        print('------------------')
+                        print()
+            except:
+                continue
 
 # url = "https://www.theguardian.com/sport/2021/nov/09/emma-raducanu-torben-beltz-tennis-coach-upper-austria-ladies-linz"
 
