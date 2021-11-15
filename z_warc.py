@@ -40,51 +40,51 @@ path = 'data/warcs/CC-MAIN-20200927121105-20200927151105-00583.warc.gz'
 skip = False
 i = 0
 
-with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as stream:
-
-    for idx, line in enumerate(stream):
-
-        # TODO: process all lines with beautifulsoup instead of < and </
-
-        # how to revert skip from True to False
-        if skip is True:
-            if 'WARC/1.0' in line:
-                skip = False
-            elif 'Content-Type: text/html' in line:
-                skip = False
-            elif '</script>' in line or '</style>' in line or '</head>' in line:
-                skip = False
-            else:
-                pass
-
-        else:
-            # how to revert skip from False to True
-            if 'Content-Type:' in line and 'text/html' not in line:
-                skip = True
-            elif '<script>' in line or '<style>' in line or '<head>' in line:
-                skip = True
-
-            else:
-                match = re.search(r'(^WARC-.*)|(^Content-.*)', line)
-                if match:
-                    pass
-                else:
-                    # process candidate results
-                    soup = BeautifulSoup(line, features='html5lib')
-
-                    try:
-                        text = soup.body.get_text(strip=True)
-                        languages = lang_det.predict(text)
-                        # carry out language detection
-                        if '__label__en' in languages[0]:
-                            entity_list = collect_entities(text)
-                            if entity_list:
-                                print(entity_list)
-                                print('------------------')
-                                print()
-
-                    except:
-                        continue
+# with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as stream:
+#
+#     for idx, line in enumerate(stream):
+#
+#         # TODO: process all lines with beautifulsoup instead of < and </
+#
+#         # how to revert skip from True to False
+#         if skip is True:
+#             if 'WARC/1.0' in line:
+#                 skip = False
+#             elif 'Content-Type: text/html' in line:
+#                 skip = False
+#             elif '</script>' in line or '</style>' in line or '</head>' in line:
+#                 skip = False
+#             else:
+#                 pass
+#
+#         else:
+#             # how to revert skip from False to True
+#             if 'Content-Type:' in line and 'text/html' not in line:
+#                 skip = True
+#             elif '<script>' in line or '<style>' in line or '<head>' in line:
+#                 skip = True
+#
+#             else:
+#                 match = re.search(r'(^WARC-.*)|(^Content-.*)', line)
+#                 if match:
+#                     pass
+#                 else:
+#                     # process candidate results
+#                     soup = BeautifulSoup(line, features='html5lib')
+#
+#                     try:
+#                         text = soup.body.get_text(strip=True)
+#                         languages = lang_det.predict(text)
+#                         # carry out language detection
+#                         if '__label__en' in languages[0]:
+#                             entity_list = collect_entities(text)
+#                             if entity_list:
+#                                 print(entity_list)
+#                                 print('------------------')
+#                                 print()
+#
+#                     except:
+#                         continue
 
 
     # for idx, line in enumerate(stream):
@@ -147,26 +147,34 @@ with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as stream:
         # else:
         #     print(line)
 
-# with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as stream:
-#     for idx, line in enumerate(stream):
-#         # print(line)
-#         # TODO: find a way to skip to the next document if the content-type is not appropriate
-#         if '<!DOCTYPE html>' in line:
-#             soup = BeautifulSoup(line, features='html5lib')
-#             try:
-#                 body = soup.body
-#                 style = body.style
-#                 print(style)
-#                 text = soup.body.get_text(strip=True)
-#                 languages = lang_det.predict(text)
-#                 if '__label__en' in languages[0]:
-#                     entity_list = collect_entities(text)
-#                     if entity_list:
-#                         print(entity_list)
-#                         print('------------------')
-#                         print()
-#             except:
-#                 continue
+with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as stream:
+    for idx, line in enumerate(stream):
+        # print(line)
+        # TODO: find a way to skip to the next document if the content-type is not appropriate
+        if 'WARC-RECORD-ID' in line:
+            print('YES')
+            # print(line)
+            key = line.split(':')[1]
+
+        # elif '<!DOCTYPE html>' in line:
+        #     soup = BeautifulSoup(line, features='html5lib')
+        #     try:
+        #         body = soup.body
+        #         # style = body.style
+        #         text = soup.body.get_text(strip=True).strip()
+        #         text = text.replace('\ufeff', '')
+        #         if text:
+        #             languages = lang_det.predict(text)
+        #             if '__label__en' in languages[0]:
+        #                 print(key)
+        #                 print(text)
+        #             # entity_list = collect_entities(text)
+        #             # if entity_list:
+        #             #     print(entity_list)
+        #                 print('------------------')
+        #                 print()
+        #     except:
+        #         continue
 
 # url = "https://www.theguardian.com/sport/2021/nov/09/emma-raducanu-torben-beltz-tennis-coach-upper-austria-ladies-linz"
 
@@ -202,25 +210,25 @@ with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as stream:
 #             payload += line
 #     yield payload
 
-def split_records(stream):
-    for idx, line in enumerate(stream):
-        if '<!DOCTYPE html' in line:
-            # clean = html2text(line)
-            # print(line.strip())
-            try:
-                soup = BeautifulSoup(line, parser='html5lib')
-                text = soup.body.get_text(strip=True)
-                print(text)
-                # languages = lang_det.predict(text)
-                # if '__label__en' in languages[0]:
-                #     doc = nlp(text)
-                #     for ent in doc.ents:
-                #         print(ent.text)  # TODO: find all spacy labels and filter for the relevant ones
-            # print(clean.strip())
-                print('-----------------------------------')
-                print()
-            except:
-                continue
+# def split_records(stream):
+#     for idx, line in enumerate(stream):
+#         if '<!DOCTYPE html' in line:
+#             # clean = html2text(line)
+#             # print(line.strip())
+#             try:
+#                 soup = BeautifulSoup(line, parser='html5lib')
+#                 text = soup.body.get_text(strip=True)
+#                 print(text)
+#                 # languages = lang_det.predict(text)
+#                 # if '__label__en' in languages[0]:
+#                 #     doc = nlp(text)
+#                 #     for ent in doc.ents:
+#                 #         print(ent.text)  # TODO: find all spacy labels and filter for the relevant ones
+#             # print(clean.strip())
+#                 print('-----------------------------------')
+#                 print()
+#             except:
+#                 continue
         # if '<!DOCTYPE html>' in line:
         #     try:
         #         soup = BeautifulSoup(line, parser='html5lib')
