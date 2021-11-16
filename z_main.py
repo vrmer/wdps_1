@@ -1,3 +1,4 @@
+import os
 import gzip
 import glob
 import spacy
@@ -69,19 +70,19 @@ def process_payload(payload):
     return key, text
 
 
-output_dict = defaultdict(dict)
-
-
 def process_archive(archive_path):
+    basename = os.path.basename(archive_path).rstrip('.warc.gz')
     counter = 0
+    output_dict = defaultdict(dict)
     with gzip.open(archive_path, 'rt', errors='ignore', encoding='utf8') as stream:
         payloads = split_records(stream)
         for payload in payloads:
             key, text = process_payload(payload)
-            # if counter == 5:
+            # if counter == 2:
             #     break
             if key and text:
                 entities = collect_entities(text)
+                print(key)
                 output_dict[key]['entities'] = entities
                 output_dict[key]['text'] = text
                 # print(output_dict)
@@ -89,6 +90,8 @@ def process_archive(archive_path):
                 # print()
                 counter += 1
                 print(counter)
+    with open(f'outputs/{basename}_entities.pkl', 'wb') as outfile:
+        pickle.dump(output_dict, outfile)
 
 
 # path = 'data/warcs/CC-MAIN-20200927121105-20200927151105-00583.warc.gz'
@@ -100,5 +103,5 @@ with Pool(processes) as p:
     p.map(process_archive, all_paths)
     # p.imap(process_archive, all_paths, chunksize=10)
 
-with open('outputs/entities.pkl', 'wb') as outfile:
-    pickle.dump(output_dict, outfile)
+# with open('outputs/entities.pkl', 'wb') as outfile:
+#     pickle.dump(output_dict, outfile)
