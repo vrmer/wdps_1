@@ -1,0 +1,118 @@
+import gzip
+import glob
+import spacy
+import pickle
+import fasttext
+import html5lib
+from bs4 import BeautifulSoup
+from multiprocessing import Pool
+
+nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
+lang_det = fasttext.load_model('lid.176.ftz')
+
+KEYNAME = 'WARC-Record-ID'
+TARGET_LABELS = {'EVENT', 'GPE', 'LOC', 'NORP', 'ORG', 'PERSON', 'PRODUCT', 'WORK_OF_ART'}
+
+
+def split_records(stream):
+    payload = ''
+    for line in stream:
+        if line.strip() == "WARC/1.0":
+            yield payload
+            payload = ''
+        else:
+            payload += line
+    yield payload
+
+
+def filter_for_english_text(payload):
+    for line in payload.splitlines():
+        if '<!DOCTYPE html>' in line:
+            soup = BeautifulSoup(line, features='html5lib')
+            text = soup.body.get_text(strip=True).strip()
+            text = text.replace('\ufeff', '')
+            # print(text)
+            if text:
+                languages = lang_det.predict(text)
+                # print(languages)
+                if '__label__en' in languages[0]:
+                    return text
+    return None
+
+
+def collect_entities(text):
+    entities = []
+    doc = nlp(text)
+    for ent in doc.ents:
+        if ent.label_ in TARGET_LABELS:
+            if '=' not in ent.text and ';' not in ent.text:
+                entities.append(ent.text)
+    return entities
+
+
+def extract_key(payload):
+    if payload == '':
+        return
+    key = None
+    for line in payload.splitlines():
+        if line.startswith(KEYNAME):
+            key = line.split(': ')[1]
+    return key
+
+
+def process_payload(payload):
+    key = None
+    text = filter_for_english_text(payload)
+    if text:
+        key = extract_key(payload)
+    return key, text
+
+
+output_dict = dict()
+
+
+def process_archive(archive_path):
+    counter = 0
+    with gzip.open(archive_path, 'rt', errors='ignore', encoding='utf8') as stream:
+        payloads = split_records(stream)
+        for payload in payloads:
+            key, text = process_payload(payload)
+            if counter == 5:
+                break
+            if key and text:
+                entities = collect_entities(text)
+                output_dict[key] = [entities, text]
+                print(output_dict)
+                print('----------------')
+                print()
+                counter += 1
+                print(counter)
+
+
+# path = 'data/warcs/CC-MAIN-20200927121105-20200927151105-00583.warc.gz'
+
+all_paths = glob.glob('data/warcs/**.gz')
+processes = len(all_paths)
+
+with Pool(processes) as p:
+    p.map(process_archive, all_paths)
+    # p.imap(process_archive, all_paths, chunksize=10)
+
+with open('outputs/entities.pkl', 'wb') as outfile:
+    pickle.dump(output_dict, outfile)
+
+# counter = 0
+#
+# with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as stream:
+#     payloads = split_records(stream)
+#     for payload in payloads:
+#         if counter == 5:
+#             break
+#         key, text = process_payload(payload)
+#         if key and text:
+#             # entities = collect_entities(text)
+#             print(key)
+#             print(text)
+#             # print(entities)
+#             counter += 1
+
