@@ -6,6 +6,7 @@ import fasttext
 import html5lib
 from bs4 import BeautifulSoup
 from multiprocessing import Pool
+from collections import defaultdict
 
 nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
 lang_det = fasttext.load_model('lid.176.ftz')
@@ -68,7 +69,7 @@ def process_payload(payload):
     return key, text
 
 
-output_dict = dict()
+output_dict = defaultdict(dict)
 
 
 def process_archive(archive_path):
@@ -77,14 +78,15 @@ def process_archive(archive_path):
         payloads = split_records(stream)
         for payload in payloads:
             key, text = process_payload(payload)
-            if counter == 5:
-                break
+            # if counter == 5:
+            #     break
             if key and text:
                 entities = collect_entities(text)
-                output_dict[key] = [entities, text]
-                print(output_dict)
-                print('----------------')
-                print()
+                output_dict[key]['entities'] = entities
+                output_dict[key]['text'] = text
+                # print(output_dict)
+                # print('----------------')
+                # print()
                 counter += 1
                 print(counter)
 
@@ -100,19 +102,3 @@ with Pool(processes) as p:
 
 with open('outputs/entities.pkl', 'wb') as outfile:
     pickle.dump(output_dict, outfile)
-
-# counter = 0
-#
-# with gzip.open(path, 'rt', errors='ignore', encoding='utf8') as stream:
-#     payloads = split_records(stream)
-#     for payload in payloads:
-#         if counter == 5:
-#             break
-#         key, text = process_payload(payload)
-#         if key and text:
-#             # entities = collect_entities(text)
-#             print(key)
-#             print(text)
-#             # print(entities)
-#             counter += 1
-
