@@ -82,7 +82,7 @@ def process_archive(archive_path):
             #     break
             if key and text:
                 entities = collect_entities(text)
-                print(key)
+                # print(key)
                 output_dict[key]['entities'] = entities
                 output_dict[key]['text'] = text
                 # print(output_dict)
