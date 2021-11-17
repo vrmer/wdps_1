@@ -9,6 +9,10 @@ from bs4 import BeautifulSoup
 from multiprocessing import Pool
 from collections import defaultdict
 
+# from multiprocessing import set_start_method
+# set_start_method("spawn")
+from multiprocessing import get_context
+
 nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
 lang_det = fasttext.load_model('lid.176.ftz')
 
@@ -102,7 +106,7 @@ if __name__ == '__main__':
     all_paths = glob.glob('data/warcs/**.gz')
     processes = len(all_paths)
 
-    with Pool(processes) as p:
+    with get_context('spawn').Pool(processes) as p:
         p.map(process_archive, all_paths)
         # p.imap(process_archive, all_paths, chunksize=10)
 
