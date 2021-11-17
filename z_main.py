@@ -42,7 +42,7 @@ def filter_for_english_text(payload):
                 try:
                     languages = lang_det.predict(text)
                 except ValueError:
-                    print(repr(text))
+                    # print(repr(text))
                     text = text.replace('\n', '')
                     languages = lang_det.predict(text)
                 # print(languages)
@@ -93,7 +93,7 @@ def process_archive(archive_path):
                 try:
                     entities = collect_entities(text)
                 except ValueError:
-                    pass
+                    continue
                 # print(key)
                 output_dict[key]['entities'] = entities
                 output_dict[key]['text'] = text
