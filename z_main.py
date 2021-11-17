@@ -111,10 +111,10 @@ def process_archive(archive_path):
 
 if __name__ == '__main__':
 
-    # all_paths = glob.glob('data/warcs/**.gz')
-    # processes = len(all_paths)
-    processes = 1
-    all_paths = ['data/warcs/CC-MAIN-20200929190110-20200929220110-00527.warc.gz']
+    all_paths = glob.glob('data/warcs/**.gz')
+    processes = len(all_paths)
+    # processes = 1
+    # all_paths = ['data/warcs/CC-MAIN-20200929190110-20200929220110-00527.warc.gz']
 
     with get_context('spawn').Pool(processes) as p:
         p.map(process_archive, all_paths)
