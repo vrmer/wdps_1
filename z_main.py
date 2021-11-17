@@ -39,7 +39,12 @@ def filter_for_english_text(payload):
             text = text.replace('\ufeff', '')
             # print(text)
             if text:
-                languages = lang_det.predict(text)
+                try:
+                    languages = lang_det.predict(text)
+                except ValueError:
+                    print(repr(text))
+                    text = text.replace('\n', '')
+                    languages = lang_det.predict(text)
                 # print(languages)
                 if '__label__en' in languages[0]:
                     return text
@@ -85,7 +90,10 @@ def process_archive(archive_path):
             # if counter == 2:
             #     break
             if key and text:
-                entities = collect_entities(text)
+                try:
+                    entities = collect_entities(text)
+                except ValueError:
+                    pass
                 # print(key)
                 output_dict[key]['entities'] = entities
                 output_dict[key]['text'] = text
@@ -103,8 +111,10 @@ def process_archive(archive_path):
 
 if __name__ == '__main__':
 
-    all_paths = glob.glob('data/warcs/**.gz')
-    processes = len(all_paths)
+    # all_paths = glob.glob('data/warcs/**.gz')
+    # processes = len(all_paths)
+    processes = 1
+    all_paths = ['data/warcs/CC-MAIN-20200929190110-20200929220110-00527.warc.gz']
 
     with get_context('spawn').Pool(processes) as p:
         p.map(process_archive, all_paths)
