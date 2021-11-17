@@ -96,12 +96,15 @@ def process_archive(archive_path):
 
 # path = 'data/warcs/CC-MAIN-20200927121105-20200927151105-00583.warc.gz'
 
-all_paths = glob.glob('data/warcs/**.gz')
-processes = len(all_paths)
 
-with Pool(processes) as p:
-    p.map(process_archive, all_paths)
-    # p.imap(process_archive, all_paths, chunksize=10)
+if __name__ == '__main__':
 
-# with open('outputs/entities.pkl', 'wb') as outfile:
-#     pickle.dump(output_dict, outfile)
+    all_paths = glob.glob('data/warcs/**.gz')
+    processes = len(all_paths)
+
+    with Pool(processes) as p:
+        p.map(process_archive, all_paths)
+        # p.imap(process_archive, all_paths, chunksize=10)
+
+    # with open('outputs/entities.pkl', 'wb') as outfile:
+    #     pickle.dump(output_dict, outfile)
