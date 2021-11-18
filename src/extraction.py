@@ -3,6 +3,7 @@ import gzip
 import glob
 import spacy
 import pickle
+import subprocess
 import fasttext
 import html5lib
 from bs4 import BeautifulSoup
@@ -10,8 +11,11 @@ from multiprocessing import Pool
 from collections import defaultdict
 from multiprocessing import get_context
 
-
-nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
+try:
+    nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
+except OSError:
+    subprocess.call('python3 -m spacy download en_core_web_sm', shell=True)
+    nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
 lang_det = fasttext.load_model('../assets/lid.176.ftz')
 
 KEYNAME = 'WARC-Record-ID'
