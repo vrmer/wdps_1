@@ -28,7 +28,7 @@ lang_det = fasttext.load_model('../assets/lid.176.ftz')
 KEYNAME = 'WARC-Record-ID'
 TARGET_LABELS = {'EVENT', 'GPE', 'LOC', 'NORP',
                  'ORG', 'PERSON', 'PRODUCT', 'WORK_OF_ART',
-                 'LAW', 'LANGUAGE', 'FAC', 'MONEY', 'TIME'}
+                 'LAW', 'LANGUAGE', 'FAC'}
 
 # PUNCTUATION without dots, hyphens and apostrophes that might likely appear in named entities
 PUNCTUATION = str({punct for punct in string.punctuation if punct != '.' and punct != '-' and punct != "'"})
@@ -89,7 +89,7 @@ def collect_entities(text):
     doc = nlp(text)
     for ent in doc.ents:
         if ent.label_ in TARGET_LABELS:
-            if '=' not in ent.text and ';' not in ent.text:
+            if not any(punct in ent.text[1:-1] for punct in PUNCTUATION):
                 tuple_to_add = (ent.text.strip(PUNCTUATION), ent.label_)
                 entities.append(tuple_to_add)
     return entities
