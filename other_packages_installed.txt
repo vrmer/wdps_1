@@ -1,0 +1,5 @@
+To install for final build:
+- pip3 install --upgrade pip
+- html2text
+- spacy
+- python -m spacy download en
