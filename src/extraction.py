@@ -21,7 +21,7 @@ except OSError:
     nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
 
 # loading the language detection model
-lang_det = fasttext.load_model('../lid.176.ftz')
+lang_det = fasttext.load_model('lid.176.ftz')
 
 # define some constants regarding where the WARC record IDs can be found
 # as well as which NER labels we are filtering for
@@ -154,13 +154,13 @@ def process_archive(archive_path):
                 counter += 1
                 if counter % 10 == 0:
                     print(counter)
-    with open(f'../outputs/{basename}_entities.pkl', 'wb') as outfile:
+    with open(f'outputs/{basename}_entities.pkl', 'wb') as outfile:
         pickle.dump(output_dict, outfile)
 
 
 if __name__ == '__main__':
 
-    all_paths = glob.glob('../data/warcs/**.gz')
+    all_paths = glob.glob('data/warcs/**.gz')
     processes = len(all_paths)
 
     with get_context('spawn').Pool(processes) as p:
