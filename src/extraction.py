@@ -8,19 +8,23 @@ import html5lib
 from bs4 import BeautifulSoup
 from multiprocessing import Pool
 from collections import defaultdict
-
-# from multiprocessing import set_start_method
-# set_start_method("spawn")
 from multiprocessing import get_context
 
+
 nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
-lang_det = fasttext.load_model('lid.176.ftz')
+lang_det = fasttext.load_model('../assets/lid.176.ftz')
 
 KEYNAME = 'WARC-Record-ID'
 TARGET_LABELS = {'EVENT', 'GPE', 'LOC', 'NORP', 'ORG', 'PERSON', 'PRODUCT', 'WORK_OF_ART'}
 
 
 def split_records(stream):
+    """
+    Splits a WARC archive into individual websites (records).
+
+    :param stream: a WARC archive containing records
+    :return: a generator object yielding individual websites (records)
+    """
     payload = ''
     for line in stream:
         if line.strip() == "WARC/1.0":
@@ -32,26 +36,39 @@ def split_records(stream):
 
 
 def filter_for_english_text(payload):
+    """
+    Finds content that contains a <!DOCTYPE html> tag
+    and contains English text.
+
+    :param payload: an instance of a WARC record
+    :return: a string of text or None if nothing of that kind is found
+    """
     for line in payload.splitlines():
         if '<!DOCTYPE html>' in line:
             soup = BeautifulSoup(line, features='html5lib')
             text = soup.body.get_text(strip=True).strip()
             text = text.replace('\ufeff', '')
-            # print(text)
             if text:
                 try:
                     languages = lang_det.predict(text)
                 except ValueError:
-                    # print(repr(text))
                     text = text.replace('\n', '')
                     languages = lang_det.predict(text)
-                # print(languages)
                 if '__label__en' in languages[0]:
                     return text
     return None
 
 
 def collect_entities(text):
+    """
+    Finds named entities in a text and returns
+    a list containing the entities if they both
+    have the appropriate target labels and not contain
+    equal signs and semicolons.
+
+    :param text: a string of text
+    :return: a list of named entities detected
+    """
     entities = []
     doc = nlp(text)
     for ent in doc.ents:
@@ -62,6 +79,13 @@ def collect_entities(text):
 
 
 def extract_key(payload):
+    """
+    Extracts the WARC-Record-ID from
+    a payload.
+
+    :param payload: an instance of a WARC record
+    :return: an empty string if no payload is found or a key if it is
+    """
     if payload == '':
         return
     key = None
@@ -72,6 +96,14 @@ def extract_key(payload):
 
 
 def process_payload(payload):
+    """
+    Attempts to find a string of English text
+    in a WARC record, and if it finds one,
+    it extracts the record key too.
+
+    :param payload: an instance of a WARC record
+    :return: a tuple of a record key and text
+    """
     key = None
     text = filter_for_english_text(payload)
     if text:
@@ -80,6 +112,14 @@ def process_payload(payload):
 
 
 def process_archive(archive_path):
+    """
+    Given a path to a WARC archive, it processes its records
+    by attempting to extract a string of English text and
+    identifying entities in it.
+
+    :param archive_path: a filepath to the WARC archive
+    :return: None, it writes out the entities in the outputs folder
+    """
     basename = os.path.basename(archive_path).rstrip('.warc.gz')
     counter = 0
     output_dict = defaultdict(dict)
@@ -87,38 +127,24 @@ def process_archive(archive_path):
         payloads = split_records(stream)
         for payload in payloads:
             key, text = process_payload(payload)
-            # if counter == 2:
-            #     break
             if key and text:
                 try:
                     entities = collect_entities(text)
                 except ValueError:
                     continue
-                # print(key)
                 output_dict[key]['entities'] = entities
                 output_dict[key]['text'] = text
-                # print(output_dict)
-                # print('----------------')
-                # print()
                 counter += 1
-                print(counter)
-    with open(f'outputs/{basename}_entities.pkl', 'wb') as outfile:
+                if counter % 10 == 0:
+                    print(counter)
+    with open(f'../outputs/{basename}_entities.pkl', 'wb') as outfile:
         pickle.dump(output_dict, outfile)
-
-
-# path = 'data/warcs/CC-MAIN-20200927121105-20200927151105-00583.warc.gz'
 
 
 if __name__ == '__main__':
 
-    all_paths = glob.glob('data/warcs/**.gz')
+    all_paths = glob.glob('../data/warcs/**.gz')
     processes = len(all_paths)
-    # processes = 1
-    # all_paths = ['data/warcs/CC-MAIN-20200929190110-20200929220110-00527.warc.gz']
 
     with get_context('spawn').Pool(processes) as p:
         p.map(process_archive, all_paths)
-        # p.imap(process_archive, all_paths, chunksize=10)
-
-    # with open('outputs/entities.pkl', 'wb') as outfile:
-    #     pickle.dump(output_dict, outfile)
