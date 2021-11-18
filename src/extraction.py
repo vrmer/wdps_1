@@ -31,7 +31,7 @@ TARGET_LABELS = {'EVENT', 'GPE', 'LOC', 'NORP',
                  'LAW', 'LANGUAGE', 'FAC', 'MONEY', 'TIME'}
 
 # PUNCTUATION without dots, hyphens and apostrophes that might likely appear in named entities
-PUNCTUATION = {punct for punct in string.punctuation if punct != '.' and punct != '-' and punct != "'"}
+PUNCTUATION = str({punct for punct in string.punctuation if punct != '.' and punct != '-' and punct != "'"})
 
 
 def split_records(stream):
