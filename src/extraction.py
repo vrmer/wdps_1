@@ -21,7 +21,7 @@ except OSError:
     nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
 
 # loading the language detection model
-lang_det = fasttext.load_model('../assets/lid.176.ftz')
+lang_det = fasttext.load_model('../lid.176.ftz')
 
 # define some constants regarding where the WARC record IDs can be found
 # as well as which NER labels we are filtering for
