@@ -2,6 +2,7 @@ import os
 import gzip
 import glob
 import spacy
+import string
 import pickle
 import subprocess
 import fasttext
@@ -11,15 +12,26 @@ from multiprocessing import Pool
 from collections import defaultdict
 from multiprocessing import get_context
 
+# loading the spacy language model
 try:
     nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
 except OSError:
+    # if the en_core_web_sm model is installed, install it
     subprocess.call('python3 -m spacy download en_core_web_sm', shell=True)
     nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
+
+# loading the language detection model
 lang_det = fasttext.load_model('../assets/lid.176.ftz')
 
+# define some constants regarding where the WARC record IDs can be found
+# as well as which NER labels we are filtering for
 KEYNAME = 'WARC-Record-ID'
-TARGET_LABELS = {'EVENT', 'GPE', 'LOC', 'NORP', 'ORG', 'PERSON', 'PRODUCT', 'WORK_OF_ART'}
+TARGET_LABELS = {'EVENT', 'GPE', 'LOC', 'NORP',
+                 'ORG', 'PERSON', 'PRODUCT', 'WORK_OF_ART',
+                 'LAW', 'LANGUAGE', 'FAC', 'MONEY', 'TIME'}
+
+# PUNCTUATION without dots, hyphens and apostrophes that might likely appear in named entities
+PUNCTUATION = {punct for punct in string.punctuation if punct != '.' and punct != '-' and punct != "'"}
 
 
 def split_records(stream):
@@ -78,7 +90,8 @@ def collect_entities(text):
     for ent in doc.ents:
         if ent.label_ in TARGET_LABELS:
             if '=' not in ent.text and ';' not in ent.text:
-                entities.append(ent.text)
+                tuple_to_add = (ent.text.strip(PUNCTUATION), ent.label_)
+                entities.append(tuple_to_add)
     return entities
 
 
