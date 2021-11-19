@@ -5,7 +5,25 @@ In this readme, all of the installation instructions and coding choices will be 
 
 ## Installation
 
+To simplify the process of installing all required packaged, simply run in the command line:
+`pip3 install -r requirements.txt`
 
+In order to run the Spacy, it needs the English model, so download that through these means:
+`python3 -m spacy download en_core_web_sm`
+
+In order to run the Candidate Generation process, some corpora and data need to be downloaded for the NLTK package. To simplify this process, you can simply run the following line within the docker image to download all of the required data (NOTE: NLTK needed to properly run this process) : 
+`$ python3 ./import_wordnet.py`
+
+### Packages
+
+General packages to add to requirements.txt:
+- spacy
+- fasttext 	(Needs Microsoft Visual C++ 14.0 or greater)
+- html5lib
+- bs4
+
+For candidate generation specifically:
+- nltk
 
 ## Coding Choices
 
