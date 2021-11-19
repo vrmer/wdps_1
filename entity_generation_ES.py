@@ -10,6 +10,7 @@ import trident
 import nltk
 from nltk.corpus import wordnet as wn
 from textblob import TextBlob
+from nltk.corpus import stopwords
 
 
 KEYNAME = "WARC-Record-ID"
@@ -19,6 +20,7 @@ INPUT_FILE = "data/sample.warc.gz"
 KBPATH='assets/wikidata-20200203-truthy-uri-tridentdb'
 
 nlp = spacy.load("en_core_web_sm")
+stop_words = set(stopwords.words("english"))
 
 # def split_records(stream):
 #     payload = []
@@ -90,18 +92,18 @@ def search(query,size):
             id_labels.append(id)
     return id_labels
 
-def get_nouns_from_definition(synsets):
-    definitions = [x.definition() for x in synsets]
-    return [ [ent.text.strip() for ent in nlp(definition).ents] for definition in definitions]
+# def get_nouns_from_definition(synsets):
+#     definitions = [x.definition() for x in synsets]
+#     return [ [ent.text.strip() for ent in nlp(definition).ents] for definition in definitions]
 
 
 ## Using NLTK tokenization
-# def get_nouns_from_definition(synsets):
-#     definitions = [x.definition() for x in synsets]
-#     print(definitions)
-#     is_noun = lambda pos:pos[:2] == "NN"
-#
-#     return [ [word for (word,pos) in nltk.pos_tag(nltk.word_tokenize(definition)) if is_noun] for definition in definitions]
+def get_nouns_from_definition(synsets):
+    definitions = [x.definition() for x in synsets]
+    print(definitions)
+    is_noun = lambda pos:pos[:2] == "NN"
+
+    return [ [word for (word,pos) in nltk.pos_tag(nltk.word_tokenize(definition)) if word not in stop_words if is_noun] for definition in definitions]
 
 ## Using TextBlob tokenization.
 # def get_nouns_from_definition(synsets):
@@ -130,7 +132,7 @@ def entity_linking():
             exit(1)
 
         #check_entity = entity["Entity"]
-        check_entity = "Washington"
+        check_entity = "Glasgow"
         # Impossible: USA/US
         print("++++++++++++++++++++")
         print("Checking for Entity: ", check_entity)
@@ -149,7 +151,9 @@ def entity_linking():
 
             if synonym_length <= 1:
                 #print("NO SYNONYMS FOUND, CHECKING DEFINITION")
-                synonyms = list( set( get_nouns_from_definition(synsets)[0] ) )[:5]
+                synonyms = list( set( get_nouns_from_definition(synsets)[0] ) )
+                print(synonyms)
+                exit(1)
                 search_size = 10
 
             elif 2 < synonym_length <= 5:
