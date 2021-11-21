@@ -1,5 +1,6 @@
 import pickle
 import torch
+import time
 from transformers import BertTokenizer, BertModel, BertConfig
 from scipy.spatial import distance
 
@@ -110,8 +111,21 @@ if __name__ == '__main__':
     tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
     model.eval()
 
+    # generate mention vectors
     texts = read_pkl_files(PKL_FILE)
-    print(texts)
+    # print(texts)
+
+    start = time.perf_counter()
+    for idx, mention_info in enumerate(texts[1]['entities']):
+        mention = mention_info[0]
+        context = mention_info[2]
+        mention_vec = get_mention_vector(mention, context)
+    end = time.perf_counter()
+
+    total_time = end - start
+    print(f'Total time spent in encoding: {total_time}')
+
+
 
     # # generate mention vectors
     # # texts = read_pkl_files(PKL_FILE)
