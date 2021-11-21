@@ -1,7 +1,6 @@
 import gzip
 import sys
 import requests
-from html2text import html2text
 import spacy
 import pickle
 from elasticsearch import Elasticsearch
@@ -11,71 +10,27 @@ import nltk
 from nltk.corpus import wordnet as wn
 from textblob import TextBlob
 from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import RegexpTokenizer
+from copy import deepcopy
+import string
 
-
-KEYNAME = "WARC-Record-ID"
-WARC_DIRECTORY = "data/warcs/"
-WARC_FILE = "CC-MAIN-20200927121105-20200927151105-00583.warc.gz"
-INPUT_FILE = "data/sample.warc.gz"
 KBPATH='assets/wikidata-20200203-truthy-uri-tridentdb'
 
 nlp = spacy.load("en_core_web_sm")
 stop_words = set(stopwords.words("english"))
-
-# def split_records(stream):
-#     payload = []
-#     for idx,line in enumerate(stream):
-#         print(line.strip())
-#         if "WARC-Target-URI" in line.strip():
-#             line_split = line.split("URI: ")[1]
-#             clean_line = line_split.split("\n")[0]
-#             payload.append(clean_line)
-#
-#         if idx > 5000:
-#             return payload
-#
-#     return payload
-
-def split_records(stream):
-    payload = ''
-    for line in stream:
-        if line.strip() == "WARC/1.0":
-            yield payload
-            payload = ''
-        else:
-            payload += line
-    yield payload
-
-def read_warc_files():
-
-    with gzip.open(INPUT_FILE, 'rt', errors='ignore') as fo:
-        webpage_urls = split_records(fo)
-        #print(len(webpage_urls))
-        #url = webpage_urls[0]
-        url = "https://www.theguardian.com/sport/2021/nov/09/emma-raducanu-torben-beltz-tennis-coach-upper-austria-ladies-linz"
-        r = requests.get(url,timeout=10)
-        html_code = r.text
-        clean_text = html2text(html_code)
-        print(clean_text)
-        doc = nlp(clean_text)
-        doc_dict = []
-        for ent in doc.ents:
-            dict = {}
-            dict["Entity"] = ent.text.strip()
-            dict["Label"] = ent.label
-            dict["Start"] = ent.start_char
-            dict["End"] = ent.end_char
-            doc_dict.append(dict)
-
-        #with open('entity_lists/list_of_entities_gua_1.txt', 'wb') as fp:
-        #    pickle.dump(doc_dict, fp)
-
-        ## To read
-        #with open('entity_lists/list_of_entities_nu_1.txt', 'rb') as fp:
-        #    entity_list = pickle.load(fp)
-        exit(1)
+stop_words.add("-")
+lemmatizer = WordNetLemmatizer()
+tokenizer = RegexpTokenizer(r'\w+')
 
 def search(query,size):
+    """
+    Performs Elastic search
+
+    :param query: query string for Elastic Search process
+    :param size: determines the number of URIs returned from Elastic Search
+    :return: a list of URI's from the search process
+    """
     e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/")
     p = { "query" : { "query_string" : { "query" : query } }, "size":size}
     response = e.search(index="wikidata_en", body=json.dumps(p))
@@ -92,36 +47,85 @@ def search(query,size):
             id_labels.append(id)
     return id_labels
 
-# def get_nouns_from_definition(synsets):
-#     definitions = [x.definition() for x in synsets]
-#     return [ [ent.text.strip() for ent in nlp(definition).ents] for definition in definitions]
 
+def perform_similarity_algorithm(text, synsets):
+    """
+    Manual implementation of the Simplified Lex Algorithm.
+    The idea is to match the lemmatized nouns from both the context and definition of the various synsets.
+    Afterwards, rank them according to the number of similar occurences.
 
-## Using NLTK tokenization
+    :param text: the sentence in which the recognized entity occurs
+    :param synsets: the synonym sets found by NLTK's wordnet
+    :return: the top 3 synsets and best definition based on the similarity counts.
+    """
+    text_tok = nltk.word_tokenize(text)
+    is_noun = lambda pos: pos[:2] == "NN"
+    text_clean = [lemmatizer.lemmatize(word) for (word,pos) in nltk.pos_tag(text_tok) \
+                  if word.strip() not in stop_words and word.strip() not in string.punctuation and not word.strip().isdigit() and is_noun]
+
+    definitions = get_nouns_from_definition(synsets)
+    list_of_counts = []
+
+    for definition in definitions:
+        similarity_count = sum( [1 if lemmatizer.lemmatize(word) in text_clean else 0 for word in definition])
+        list_of_counts.append(similarity_count)
+
+    best_synsets = order_list_from_list(synsets,list_of_counts, True)[:3]
+    best_definition = order_list_from_list(definitions,list_of_counts, True)[0]
+
+    return best_synsets, best_definition
+
 def get_nouns_from_definition(synsets):
+    """
+    Returns a list of lists that contain the nouns for each synset definition
+
+    :param synsets: the synonym sets found by NLTK's Wordnet
+    :return: a list of lists containing nouns
+    """
     definitions = [x.definition() for x in synsets]
-    print(definitions)
     is_noun = lambda pos:pos[:2] == "NN"
+    return [ [word for (word,pos) in nltk.pos_tag(nltk.word_tokenize(definition)) \
+            if word.strip() not in stop_words and word.strip() not in string.punctuation and not word.strip().isdigit() and is_noun ] \
+            for definition in definitions]
 
-    return [ [word for (word,pos) in nltk.pos_tag(nltk.word_tokenize(definition)) if word not in stop_words if is_noun] for definition in definitions]
+def sort_list_manually(to_sort, base):
+    """
+    Manual sorting algorithm for maintaining the order of the synsets found in NLTK's Wordnet while sorting the list
+    in descending order
 
-## Using TextBlob tokenization.
-# def get_nouns_from_definition(synsets):
-#     definitions = [x.definition() for x in synsets]
-#     print(definitions)
-#     return [ TextBlob(definition).noun_phrases for definition in definitions]
+    :param to_sort: the list of synsets that needs to be sorted
+    :param base: the list that provides the integers on which the to_sort list needs to be sorted
+    :return: a sorted list of synsets
+    """
+    copy_base = deepcopy(base)
 
-def order_entities(list_of_uris):
+    while sum(copy_base) > 0:
+        max_value = max(copy_base)
+        copy_base.remove(max_value)
+        to_sort.insert(0, to_sort.pop(base.index(max_value)))
 
-    # First split on "/", then take the last part of the URI including the entity number.
-    # Afterwards, remove the Q and the ">" from the entity number to get the number itself
-    # Then convert everything to int so that it can be sorted according to the entity numbers
+    return to_sort
 
-    entity_numbers = [ int( uri.split("/")[-1][1:][:-1] ) for uri in list_of_uris]
+def order_list_from_list(to_order, base, reverse):
+    """
+    Sort the list of synsets or entities in descending and ascending order respectively based on the base list.
 
-    return [x for _, x in sorted( zip (entity_numbers, list_of_uris  ) )]
+    :param to_sort: the list of synsets that needs to be sorted
+    :param base: the list that provides the integers on which the to_sort list needs to be sorted
+    :param reverse: sort the list of synsets in descending order
+    :return: a sorted list of synsets or entities
+    """
+    if reverse:
+        return [x for x in sort_list_manually(to_order,base)]
+    else:
+        return [x for _, x in sorted(zip(base, to_order))]
 
-def entity_linking():
+def entity_generation():
+    """
+    Performs the entity generation for all entities and corresponding texts
+
+    :return: a sorted list of URI's for the trident database.
+    """
 
     with open('entity_lists/list_of_entities_gua_1.txt', 'rb') as fp:
         entity_list = pickle.load(fp)
@@ -132,57 +136,59 @@ def entity_linking():
             exit(1)
 
         #check_entity = entity["Entity"]
-        check_entity = "Glasgow"
-        # Impossible: USA/US
+        check_entity = "Washington"
+        #text = "The United States of America (U.S.A. or USA), commonly known as the United States (U.S. or US) or America, is a country primarily located in North America."
+        #text = "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797"
+        text = ""
         print("++++++++++++++++++++")
         print("Checking for Entity: ", check_entity)
 
-        # if any( x in check_entity for x in ["/", "[", "]", "(", ")", "%"] ):
-        #     print("Faulty entity, skipping")
-        #     print("++++++++++++++++++++")
-        #     continue
-
-        synsets = wn.synsets(check_entity, pos=wn.NOUN)[:5]
+        synsets = wn.synsets(check_entity, pos=wn.NOUN)
 
         if synsets:
-            search_size = 10
-            synonyms = list( set( [lemma.name().replace("_", " ") for x in synsets for lemma in x.lemmas()] ) )
-            synonym_length = len(synonyms)
+            search_size = 8
+            synset_length = len(synsets)
+            enable_triple_search = False
 
-            if synonym_length <= 1:
-                #print("NO SYNONYMS FOUND, CHECKING DEFINITION")
+            if synset_length <= 1:
                 synonyms = list( set( get_nouns_from_definition(synsets)[0] ) )
-                print(synonyms)
-                exit(1)
-                search_size = 10
+            else:
+                if not text:
+                    best_synsets = synsets[:5]
+                    best_definition = list( set( get_nouns_from_definition(synsets)[0] ) )
+                else:
+                    best_synsets, best_definition = perform_similarity_algorithm(text, synsets)
 
-            elif 2 < synonym_length <= 5:
-                #print("REDUCING SIZE!, TOO MANY SYNONYMS")
-                search_size = 10
+                synonyms = [lemma.name().replace("_", " ") for x in best_synsets for lemma in x.lemmas()]
+                synonyms = list( set( synonyms + best_definition ) )[:13]
 
-            elif synonym_length > 5:
-                #print("TOO MANY SYNONYMS, ONLY CHECKING FIRST 10")
-                synonyms = synonyms[:5]
-                search_size = 10
-
-            #synonyms += get_nouns_from_definition(synsets)[0][:5]
-
+            #synonyms = ['George Washington', '1st', 'President', 'United', 'States', 'commander-in-chief', 'Continental', 'Army', 'American', 'Revolution', '1732-1799']
             list_of_uris = []
-            for synonym in synonyms:
+            synonyms_iter = synonyms[:-1]
+
+            for  synonym in synonyms:
                 print("++++++++++++++++++++")
                 print("CHECKING FOR ENTITY: ", check_entity, " AND SYNONYM: ", synonym)
+
                 list_of_uris += search(synonym, search_size)
-                list_of_uris += search("(%s) AND (%s)" % (check_entity, synonym), search_size )
+                list_of_uris += search("(%s) AND (%s)" % (check_entity, synonym), search_size)
+
                 print("++++++++++++++++++++")
 
-
         else:
-            print("No Synonyms,querying normally")
+            print("No Synsets detected,querying normally")
             list_of_uris = search(check_entity,20)
 
         list_of_uris = list ( set ( list_of_uris)) # For only obtaining the unique ones
 
-        ordered_uris = order_entities(list_of_uris)
+        '''
+        First split on "/", then take the last part of the URI including the entity number.
+        Afterwards, remove the Q and the ">" from the entity number to get the number itself
+        Then convert everything to int so that it can be sorted according to the entity numbers
+        '''
+        entity_numbers = [int(uri.split("/")[-1][1:][:-1]) for uri in list_of_uris]
+        ordered_uris = order_list_from_list(list_of_uris,entity_numbers, False)
+
         if ordered_uris:
             print("Entity: ", check_entity, " ;  Corresponding best URI: ", ordered_uris)
             print("++++++++++++++++++++")
@@ -195,41 +201,9 @@ def entity_linking():
 
         exit(1)
 
-#def link_lookup(url):
-
-    # QUERIES FOR SPARQL, NOT NEEDED
-    # query = "PREFIX wde: <http://www.wikidata.org/entity/> " \
-    #         "PREFIX wdp: <http://www.wikidata.org/prop/direct/> " \
-    #         "PREFIX wdpn: <http://www.wikidata.org/prop/direct-normalized/> " \
-    #             "select ?s where { ?s wdp:P31 wde:Q145 . } LIMIT 10"
-
-    # query = "PREFIX wde: <http://www.wikidata.org/entity/> " \
-    #         "SELECT DISTINCT ?v WHERE { ?v ?p wde:Q145 } "
-
-    # Load the KB
-    #db = trident.Db(KBPATH)
-    # url = "<http://www.wikidata.org/entity/Q145>"
-
-    #results = db.sparql(query)
-
-    #print(results)
+entity_generation()
 
 
-    # print("URL: ", url)
-    #
-    # term_id = db.lookup_id(url)
-    # print("Term id: ", term_id)
-    # po = db.po(term_id) # returns relations, such as P31 or http://www.wikidata.org/prop/direct/P279
-    # print(po)
-    # relation = db.lookup_str(po[5][0])
-    #
-    # print(relation)
-    #
-    # exit(1)
-
-#read_warc_files()
-
-entity_linking()
 
 
 
