@@ -3,8 +3,6 @@ import torch
 from transformers import BertTokenizer, BertModel, BertConfig
 from scipy.spatial import distance
 
-PKL_FILE = 'outputs/CC-MAIN-20201001210429-20201002000429-00799_entities.pkl'
-
 
 def read_pkl_files(pickle_file):
 
@@ -103,6 +101,8 @@ def pooling_token_embeddings (input,from_n_layer_on):
 
 if __name__ == '__main__':
 
+    PKL_FILE = 'outputs/CC-MAIN-20201001210429-20201002000429-00799_entities.pkl'
+
     # initialize BERT
     MODEL_NAME = 'bert-base-uncased'
     config = BertConfig.from_pretrained(MODEL_NAME, output_hidden_states=True)
@@ -110,34 +110,37 @@ if __name__ == '__main__':
     tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
     model.eval()
 
-    # generate mention vectors
-    # texts = read_pkl_files(PKL_FILE)
-    text = ('uri', {'entities':[('The Washington Post','ORG','The Washington Post: Democracy Dies in Darkness'),
-                                ('UK','ORG','Covid-19 vaccines are licensed in the UK only for children aged 12'),
-                                ('Big Blue', 'ORG', 'Since then, Big Blue path the way for technological revolution.')]})
+    texts = read_pkl_files(PKL_FILE)
+    print(texts)
 
-    entity_list = [[{'name': 'Washington', 'description': 'state of the United States of America'},
-                   {'name': 'George Washington', 'description': '1st president of the United States (1732−1799)'},
-                   {'name': 'The Washington Post', 'description': 'daily broadsheet newspaper in Washington, D.C.'}],
-                   [{'name': 'United Kingdom', 'description': 'country in Western Europe'},
-                    {'name': 'UK Independence Party', 'description': 'British political party'},
-                    {'name': 'Ukrainian', 'description': 'East Slavic language'}],
-                   [{'name': 'IBM', 'description': 'American multinational technology and consulting corporation'},
-                    {'name': 'The Big Blue', 'description': '1988 English-language film directed by Luc Besson'},
-                    {'name': 'Big Blue', 'description': 'painting by Ronald Davis'}]]
-    counter = 0
-    for mention_info in text[1]['entities']:
-        mention = mention_info[0]
-        context = mention_info[2]
-        mention_vec = get_mention_vector(mention,context)
-        # generate candidate vectors and measure pairwise similarity between mention and candidate vectors
-        similarity_scores = []
-        print(f'---------------------------------')
-        print(f'Mention: {mention}')
-        print()
-        for dict in entity_list[counter]:
-            candidate_vec = get_candidate_vector(dict['name'],dict['description'])
-            similarity = 1 - distance.cosine(mention_vec,candidate_vec)
-            similarity_scores.append(similarity)
-            print(f'Entity: {dict["name"]}  {similarity}')
-        counter += 1
+    # # generate mention vectors
+    # # texts = read_pkl_files(PKL_FILE)
+    # text = ('uri', {'entities':[('The Washington Post','ORG','The Washington Post: Democracy Dies in Darkness'),
+    #                             ('UK','ORG','Covid-19 vaccines are licensed in the UK only for children aged 12'),
+    #                             ('Big Blue', 'ORG', 'Since then, Big Blue path the way for technological revolution.')]})
+    #
+    # entity_list = [[{'name': 'Washington', 'description': 'state of the United States of America'},
+    #                {'name': 'George Washington', 'description': '1st president of the United States (1732−1799)'},
+    #                {'name': 'The Washington Post', 'description': 'daily broadsheet newspaper in Washington, D.C.'}],
+    #                [{'name': 'United Kingdom', 'description': 'country in Western Europe'},
+    #                 {'name': 'UK Independence Party', 'description': 'British political party'},
+    #                 {'name': 'Ukrainian', 'description': 'East Slavic language'}],
+    #                [{'name': 'IBM', 'description': 'American multinational technology and consulting corporation'},
+    #                 {'name': 'The Big Blue', 'description': '1988 English-language film directed by Luc Besson'},
+    #                 {'name': 'Big Blue', 'description': 'painting by Ronald Davis'}]]
+    # counter = 0
+    # for mention_info in text[1]['entities']:
+    #     mention = mention_info[0]
+    #     context = mention_info[2]
+    #     mention_vec = get_mention_vector(mention,context)
+    #     # generate candidate vectors and measure pairwise similarity between mention and candidate vectors
+    #     similarity_scores = []
+    #     print(f'---------------------------------')
+    #     print(f'Mention: {mention}')
+    #     print()
+    #     for dict in entity_list[counter]:
+    #         candidate_vec = get_candidate_vector(dict['name'],dict['description'])
+    #         similarity = 1 - distance.cosine(mention_vec,candidate_vec)
+    #         similarity_scores.append(similarity)
+    #         print(f'Entity: {dict["name"]}  {similarity}')
+    #     counter += 1
