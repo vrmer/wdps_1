@@ -13,12 +13,8 @@ from collections import defaultdict
 from multiprocessing import get_context
 
 # loading the spacy language model
-try:
-    nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
-except OSError:
-    # if the en_core_web_sm model is installed, install it
-    subprocess.call('python3 -m spacy download en_core_web_sm', shell=True)
-    nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
+# nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
+nlp = spacy.load('en_core_web_sm')
 
 # loading the language detection model
 lang_det = fasttext.load_model('lid.176.ftz')
@@ -78,20 +74,23 @@ def filter_for_english_text(payload):
 def collect_entities(text):
     """
     Finds named entities in a text and returns
-    a list containing the entities if they both
-    have the appropriate target labels and not contain
-    equal signs and semicolons.
+    the tuples containing the named entities, their
+    labels, and the sentence they appear in.
 
     :param text: a string of text
     :return: a list of named entities detected
     """
     entities = []
     doc = nlp(text)
-    for ent in doc.ents:
-        if ent.label_ in TARGET_LABELS:
-            if not any(punct in ent.text[1:-1] for punct in PUNCTUATION):
-                tuple_to_add = (ent.text.strip(PUNCTUATION), ent.label_)
-                entities.append(tuple_to_add)
+    # looping through the sentences in the text
+    for sent in doc.sents:
+        # identifying entities
+        for ent in sent.ents:
+            if ent.label_ in TARGET_LABELS:
+                if not any(punct in ent.text[1:-1] for punct in PUNCTUATION):
+                    # adding entities, labels, and sentence (context) to the list
+                    tuple_to_add = (ent.text.strip(PUNCTUATION), ent.label_, sent.text)
+                    entities.append(tuple_to_add)
     return entities
 
 
