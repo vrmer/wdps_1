@@ -5,33 +5,37 @@ from transformers import BertTokenizer, BertModel, BertConfig
 from scipy.spatial import distance
 
 
-def read_pkl_files(pickle_file):
-
-    with open(pickle_file, 'rb') as infile:
-        texts = pickle.load(infile)
-        for text in texts.items():
-            print(text)
-            exit(3)
-    return texts
-
 def get_mention_vector(mention,context):
 
     tokenized_text = [tokenizer.cls_token] + tokenizer.tokenize(context) + [tokenizer.sep_token]
+    # print()
     # print(tokenized_text)
+    # print()
     indexed_tokens = tokenizer.convert_tokens_to_ids(tokenized_text)
     tokens_tensor = torch.tensor(indexed_tokens).unsqueeze(0)
 
-    mention = mention.split()
+    # mention = mention.split()
+    # print('-----------------------------')
+    # print(mention)
+    # print(context)
+    # print()
+    mention = tokenizer.tokenize(mention)
+    # print(mention)
+    # print(mention)
     mention_idx = []
-    for word in mention:
-        if word.lower() in tokenized_text:
-            mention_idx.append(tokenized_text.index(word.lower()))
+    for subword in mention:
+        # print(word.lower())
+        if subword.lower() in tokenized_text:
+            mention_idx.append(tokenized_text.index(subword.lower()))
             # print(mention_idx)
         else: # if word out of model vocab, take the index of the last word piece
             for token in enumerate(tokenized_text):
+                # print(token)
                 if token[0:2] == '##' and tokenized_text[token[0] + 1][0:2] != '##':
                     mention_idx.append(tokenized_text.index(token))
                     # print(mention_idx) # [768 -> mention span, 768 -> context]
+
+    # print(mention_idx)
 
     # with torch.no_grad():
     #     outputs = model(tokens_tensor)
@@ -112,14 +116,40 @@ if __name__ == '__main__':
     model.eval()
 
     # generate mention vectors
-    texts = read_pkl_files(PKL_FILE)
-    # print(texts)
+    with open(PKL_FILE, 'rb') as infile:
+        texts = pickle.load(infile)
 
     start = time.perf_counter()
-    for idx, mention_info in enumerate(texts[1]['entities']):
-        mention = mention_info[0]
-        context = mention_info[2]
-        mention_vec = get_mention_vector(mention, context)
+
+    for key, entities in texts.items():
+        for lb, entity_list in entities.items():
+            for entity_tuple in entity_list:
+                try:
+                    mention, label, context = entity_tuple
+                except ValueError:
+                    print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+                    for entity in entity_list:
+                        print(entity)
+                    # # print(lb)
+                    # print()
+                    # print(entity_list)
+                    # print()
+                    # # print(entity_tuple)
+                    exit()
+                # print()
+                # print(mention)
+                # print(context)
+                try:
+                    mention_vec = get_mention_vector(mention, context)
+                except RuntimeError:
+                    print(mention)
+                    print(context)
+                    print('------------------------------------------')
+                    print()
+        #         break
+        #     break
+        # break
+
     end = time.perf_counter()
 
     total_time = end - start
