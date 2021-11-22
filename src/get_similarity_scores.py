@@ -7,33 +7,52 @@ from scipy.spatial import distance
 
 def get_mention_vector(mention,context):
 
-    tokenized_text = [tokenizer.cls_token] + tokenizer.tokenize(context) + [tokenizer.sep_token]
-    # print()
-    # print(tokenized_text)
-    # print()
-    indexed_tokens = tokenizer.convert_tokens_to_ids(tokenized_text)
-    tokens_tensor = torch.tensor(indexed_tokens).unsqueeze(0)
+    # tokenized_text = [tokenizer.cls_token] + tokenizer.tokenize(context) + [tokenizer.sep_token]
+    # tokenized_span = [tokenizer.cls_token] + tokenizer.tokenize(mention) + [tokenizer.sep_token]
+    # indexed_tokens = tokenizer.convert_tokens_to_ids(tokenized_text)
+    # indexed_span = tokenizer.convert_tokens_to_ids(tokenized_span)
+    # tokens_tensor = torch.tensor(indexed_tokens).unsqueeze(0)
+    # print(tokens_tensor.size())
+    # span_tensor = torch.tensor(indexed_span).unsqueeze(0)
+    # print(span_tensor.size())
 
-    # mention = mention.split()
-    # print('-----------------------------')
-    # print(mention)
-    # print(context)
-    # print()
-    mention = tokenizer.tokenize(mention)
-    # print(mention)
-    # print(mention)
-    mention_idx = []
-    for subword in mention:
-        # print(word.lower())
-        if subword.lower() in tokenized_text:
-            mention_idx.append(tokenized_text.index(subword.lower()))
-            # print(mention_idx)
-        else: # if word out of model vocab, take the index of the last word piece
-            for token in enumerate(tokenized_text):
-                # print(token)
-                if token[0:2] == '##' and tokenized_text[token[0] + 1][0:2] != '##':
-                    mention_idx.append(tokenized_text.index(token))
-                    # print(mention_idx) # [768 -> mention span, 768 -> context]
+    context_tokens = tokenizer.encode_plus(context,
+                                           add_special_tokens = True,
+                                           padding = False,
+                                           truncation = True,
+                                           return_tensors = 'pt')
+    tokens_tensor = context_tokens['input_ids']
+    # print(tokens_tensor.size())
+
+    span_tokens = tokenizer.encode_plus(mention,
+                                        add_special_tokens = True,
+                                        padding = False,
+                                        truncation = True,
+                                        return_tensors = 'pt')
+
+    span_tensor = span_tokens['input_ids']
+    # print(span_tensor.size())
+
+    # # mention = mention.split()
+    # # print('-----------------------------')
+    # # print(mention)
+    # # print(context)
+    # # print()
+    # mention = tokenizer.tokenize(mention)
+    # # print(mention)
+    # # print(mention)
+    # mention_idx = []
+    # for subword in mention:
+    #     # print(word.lower())
+    #     if subword.lower() in tokenized_text:
+    #         mention_idx.append(tokenized_text.index(subword.lower()))
+    #         # print(mention_idx)
+    #     else: # if word out of model vocab, take the index of the last word piece
+    #         for token in enumerate(tokenized_text):
+    #             # print(token)
+    #             if token[0:2] == '##' and tokenized_text[token[0] + 1][0:2] != '##':
+    #                 mention_idx.append(tokenized_text.index(token))
+    #                 # print(mention_idx) # [768 -> mention span, 768 -> context]
 
     # print(mention_idx)
 
@@ -53,8 +72,9 @@ def get_mention_vector(mention,context):
 
     token_embeddings = pooling_token_embeddings(tokens_tensor,2)
     context_vector = torch.mean(token_embeddings, dim=0) # average over all tokens [768]
-    span_vector = token_embeddings[mention_idx[0]:mention_idx[-1]+1] # select tokens in mention span
-    span_vector = torch.mean(span_vector,dim=0) # average over the span tokens [768]
+    # span_vector = token_embeddings[mention_idx[0]:mention_idx[-1]+1] # select tokens in mention span
+    token_embeddings = pooling_token_embeddings(span_tensor,2)
+    span_vector = torch.mean(token_embeddings,dim=0) # average over the span tokens [768]
     # print(context_vector.size())
     # print(span_vector.size())
     mention_vec = torch.cat((span_vector,context_vector)) # concatenate span and context vectors to represent mention [15..]
@@ -130,15 +150,7 @@ if __name__ == '__main__':
                     print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
                     for entity in entity_list:
                         print(entity)
-                    # # print(lb)
-                    # print()
-                    # print(entity_list)
-                    # print()
-                    # # print(entity_tuple)
                     exit()
-                # print()
-                # print(mention)
-                # print(context)
                 try:
                     mention_vec = get_mention_vector(mention, context)
                 except RuntimeError:
