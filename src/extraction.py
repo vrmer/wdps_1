@@ -4,12 +4,9 @@ import glob
 import spacy
 import string
 import pickle
-import subprocess
 import fasttext
 import html5lib
 from bs4 import BeautifulSoup
-from multiprocessing import Pool
-from collections import defaultdict
 from multiprocessing import get_context
 
 # loading the spacy language model
