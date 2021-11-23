@@ -94,6 +94,9 @@ def collect_entities(text):
     return entities
 
 
+# <option>
+
+
 def extract_key(payload):
     """
     Extracts the WARC-Record-ID from
@@ -138,7 +141,7 @@ def process_archive(archive_path):
     """
     basename = os.path.basename(archive_path).rstrip('.warc.gz')
     counter = 0
-    output_dict = defaultdict(dict)
+    output_dict = dict()
     with gzip.open(archive_path, 'rt', errors='ignore', encoding='utf8') as stream:
         payloads = split_records(stream)
         for payload in payloads:
@@ -148,8 +151,8 @@ def process_archive(archive_path):
                     entities = collect_entities(text)
                 except ValueError:
                     continue
-                output_dict[key]['entities'] = entities
-                output_dict[key]['text'] = text
+                output_dict[key] = entities
+                # output_dict[key]['text'] = text
                 counter += 1
                 if counter % 10 == 0:
                     print(counter)
