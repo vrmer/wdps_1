@@ -6,6 +6,7 @@ import string
 import pickle
 import fasttext
 import html5lib
+import html2text
 from bs4 import BeautifulSoup
 from multiprocessing import get_context
 
@@ -85,8 +86,9 @@ def collect_entities(text):
         for ent in sent.ents:
             if ent.label_ in TARGET_LABELS:
                 if not any(punct in ent.text[1:-1] for punct in PUNCTUATION):
+                    cleaned_sentence = html2text.html2text(sent.text).strip(PUNCTUATION).strip()
                     # adding entities, labels, and sentence (context) to the list
-                    tuple_to_add = (ent.text.strip(PUNCTUATION), ent.label_, sent.text)
+                    tuple_to_add = (ent.text.strip(PUNCTUATION), ent.label_, cleaned_sentence)
                     entities.append(tuple_to_add)
     return entities
 
