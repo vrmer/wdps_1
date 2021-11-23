@@ -2,7 +2,6 @@ import os
 import gzip
 import glob
 import spacy
-import string
 import pickle
 import fasttext
 import html5lib
@@ -10,12 +9,13 @@ import html2text
 from bs4 import BeautifulSoup
 from multiprocessing import get_context
 
+
 # loading the spacy language model
-# nlp = spacy.load('en_core_web_sm', disable=['parser', 'tok2vec'])
-nlp = spacy.load('en_core_web_sm')
+nlp = spacy.load('en_core_web_md')
 
 # loading the language detection model
 lang_det = fasttext.load_model('lid.176.ftz')
+fasttext.FastText.eprint = lambda x: None
 
 # define some constants regarding where the WARC record IDs can be found
 # as well as which NER labels we are filtering for
@@ -24,8 +24,7 @@ TARGET_LABELS = {'EVENT', 'GPE', 'LOC', 'NORP',
                  'ORG', 'PERSON', 'PRODUCT', 'WORK_OF_ART',
                  'LAW', 'LANGUAGE', 'FAC'}
 
-# PUNCTUATION without dots, hyphens and apostrophes that might likely appear in named entities
-PUNCTUATION = str({punct for punct in string.punctuation if punct != '.' and punct != '-' and punct != "'"})
+PUNCTUATION = {'!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`', '(', ')', '"', '=', '>', ';'}
 
 
 def split_records(stream):
@@ -59,6 +58,8 @@ def filter_for_english_text(payload):
             text = soup.body.get_text(strip=True).strip()
             text = text.replace('\ufeff', '')
             if text:
+                # text = html2text.html2text(text).lstrip(PUNCTUATION).strip()
+                text = html2text.html2text(text).strip()
                 try:
                     languages = lang_det.predict(text)
                 except ValueError:
@@ -86,14 +87,9 @@ def collect_entities(text):
         for ent in sent.ents:
             if ent.label_ in TARGET_LABELS:
                 if not any(punct in ent.text[1:-1] for punct in PUNCTUATION):
-                    cleaned_sentence = html2text.html2text(sent.text).strip(PUNCTUATION).strip()
-                    # adding entities, labels, and sentence (context) to the list
-                    tuple_to_add = (ent.text.strip(PUNCTUATION), ent.label_, cleaned_sentence)
+                    tuple_to_add = (ent.text.strip(), ent.label_, sent.text)
                     entities.append(tuple_to_add)
     return entities
-
-
-# <option>
 
 
 def extract_key(payload):
