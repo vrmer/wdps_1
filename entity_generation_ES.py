@@ -1,7 +1,6 @@
 import gzip
 import sys
 import requests
-import spacy
 import pickle
 from elasticsearch import Elasticsearch
 import json
@@ -15,7 +14,6 @@ import string
 
 KBPATH='assets/wikidata-20200203-truthy-uri-tridentdb'
 
-nlp = spacy.load("en_core_web_sm")
 stop_words = set(stopwords.words("english"))
 stop_words.add("-")
 lemmatizer = WordNetLemmatizer()
@@ -28,7 +26,9 @@ def search(query,size):
     :param size: determines the number of URIs returned from Elastic Search
     :return: a list of URI's from the search process
     """
-    e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/")
+    # e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/")
+    # e = Elasticsearch('http://localhost:9200')
+    e = Elasticsearch(timeout=30)
     p = { "query" : { "query_string" : { "query" : query } }, "size":size}
     response = e.search(index="wikidata_en", body=json.dumps(p))
     id_labels = []
@@ -40,7 +40,10 @@ def search(query,size):
             print("---------------------------------")
             id = hit['_id']
             label = hit['_source']['schema_name']
-            description = hit['_source']['schema_description']
+            if "schema_description" in hit['_source']:
+                description = hit['_source']['schema_description']
+            else:
+                description = ""
             rdfs_label = hit['_source']['rdfs_label']
             uri_dict = {"uri": id, "rdfs": rdfs_label, "schema_name": label, "description": description}
             id_labels.append(uri_dict)
@@ -155,6 +158,7 @@ def entity_generation(check_entity, context):
             synonyms = list( set( synonyms + best_definition ) )[:13]
 
         #synonyms = ['George Washington', '1st', 'President', 'United', 'States', 'commander-in-chief', 'Continental', 'Army', 'American', 'Revolution', '1732-1799']
+
         list_of_uris = []
         synonyms_iter = synonyms[:-1]
 
@@ -171,7 +175,8 @@ def entity_generation(check_entity, context):
         print("No Synsets detected,querying normally")
         list_of_uris = search(check_entity,20)
 
-    list_of_uris = list ( set ( list_of_uris)) # For only obtaining the unique ones
+    set_uris = set()
+    list_of_uris = [dict(t) for t in {tuple(d.items()) for d in list_of_uris}]
 
     '''
     First split on "/", then take the last part of the URI including the entity number.
@@ -179,7 +184,7 @@ def entity_generation(check_entity, context):
     Then convert everything to int so that it can be sorted according to the entity numbers
     '''
     entity_numbers = [int(dictionary["uri"].split("/")[-1][1:][:-1]) for dictionary in list_of_uris]
-    ordered_uris = order_list_from_list(list_of_uris,entity_numbers, False)
+    ordered_uris = order_list_from_list(list_of_uris, entity_numbers, False)
 
     if ordered_uris:
         print("Entity: ", check_entity, " ;  Corresponding best URI: ", ordered_uris)
@@ -202,5 +207,5 @@ for key, entities in texts.items():
     for idx,entity_tuple in enumerate(entities):
         mention, label, context = entity_tuple
         list_of_uris = entity_generation("Washington", "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
-
+        exit(1)
 #entity_generation("Washington", "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
