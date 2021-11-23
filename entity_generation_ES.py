@@ -45,7 +45,8 @@ def search(query,size):
             else:
                 description = ""
             rdfs_label = hit['_source']['rdfs_label']
-            uri_dict = {"uri": id, "rdfs": rdfs_label, "schema_name": label, "description": description}
+            score = hit["_score"]
+            uri_dict = {"uri": id, "score": score, "rdfs": rdfs_label, "name": label, "description": description}
             id_labels.append(uri_dict)
     return id_labels
 
@@ -122,6 +123,18 @@ def order_list_from_list(to_sort, base, reverse):
     else:
         return [x for _, x in sorted(zip(base, to_sort))]
 
+def filter_uris(list_of_uris, entity):
+    to_delete = []
+    for idx,uri_dict in enumerate(list_of_uris):
+        print(idx)
+        if entity not in uri_dict["name"] and entity not in uri_dict["description"]:
+            print(uri_dict)
+            to_delete.append(idx)
+        elif "Wikipedia disambiguation page" in uri_dict["description"]:
+            to_delete.append(idx)
+
+    return [x for idx,x in enumerate(list_of_uris) if idx not in to_delete]
+
 def entity_generation(check_entity, context):
     """
     Performs the entity generation for all entities and corresponding texts
@@ -142,7 +155,6 @@ def entity_generation(check_entity, context):
     if synsets:
         search_size = 8
         synset_length = len(synsets)
-        enable_triple_search = False
 
         if synset_length <= 1:
             synonyms = list( set( get_nouns_from_definition(synsets)[0] ) )
@@ -166,8 +178,11 @@ def entity_generation(check_entity, context):
             print("++++++++++++++++++++")
             print("CHECKING FOR ENTITY: ", check_entity, " AND SYNONYM: ", synonym)
 
+            list_es = search("(%s) AND (%s)" % (check_entity, synonym), search_size)
+            if not list_es:
+                continue
             list_of_uris += search(synonym, search_size)
-            list_of_uris += search("(%s) AND (%s)" % (check_entity, synonym), search_size)
+
 
             print("++++++++++++++++++++")
 
@@ -175,8 +190,11 @@ def entity_generation(check_entity, context):
         print("No Synsets detected,querying normally")
         list_of_uris = search(check_entity,20)
 
-    set_uris = set()
-    list_of_uris = [dict(t) for t in {tuple(d.items()) for d in list_of_uris}]
+
+    #list_of_uris = [dict(t) for t in {tuple(d.items()) for d in list_of_uris}]
+    print(len(list_of_uris))
+    list_of_uris = filter_uris(list_of_uris, check_entity)
+    print(len(list_of_uris))
 
     '''
     First split on "/", then take the last part of the URI including the entity number.
@@ -185,6 +203,8 @@ def entity_generation(check_entity, context):
     '''
     entity_numbers = [int(dictionary["uri"].split("/")[-1][1:][:-1]) for dictionary in list_of_uris]
     ordered_uris = order_list_from_list(list_of_uris, entity_numbers, False)
+
+    print([dic["uri"] for dic in ordered_uris])
 
     if ordered_uris:
         print("Entity: ", check_entity, " ;  Corresponding best URI: ", ordered_uris)
@@ -208,4 +228,6 @@ for key, entities in texts.items():
         mention, label, context = entity_tuple
         list_of_uris = entity_generation("Washington", "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
         exit(1)
+
 #entity_generation("Washington", "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
+'Washington'
