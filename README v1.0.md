@@ -1,6 +1,6 @@
 # README Group 3 Assignment 1
 
-In this readme, all of the installation instructions and coding choices will be further elaborated. 
+This repository contains the solution of group 3 for the Entity Linking Assignment from the course Web Processing Data Systems 2021 at VU Amsterdam. Our solution recognizes named entity mentions in Web pages and link them to Wikidata. In the following sections, the installation instructions and coding choices will be further elaborated. 
 
 
 ## Installation
@@ -25,12 +25,21 @@ General packages to add to requirements.txt:
 For candidate generation specifically:
 - nltk
 
+## How to run the code
+
+- Add which command(s) should be used to run the code 
+
 ## Coding Choices
 
+In this section, we explain how we approach the challenges of candidate generation and disambiguation and motivate our choices.
 
 ### Importing and reading WARC files
 
 TODO
+
+### Recognizing Mentions of Named Entities in Text through Spacy
+
+After reading in the WARC files and extracting the texts, the named entities in the text are extracted with the off-the-shelf Named Entity Recognition component of Spacy pipeline. We opted for Spacy's small English pipeline trained on Web texts. It is a transformer-based pipeline that uses pre-trained RoBERTa base. Spacy's Named Entitiy Recognizer is readily available and one of the state-of-art modules for linguistic processing. - ADD INFO ON WHICH CLASSES WE INCLUDED
 
 ### Generating Candidate Entities through ElasticSearch
 
@@ -41,3 +50,5 @@ The problem with Wordnet's synsets is that, for the most popular entities, there
 However, another problem is that there may not be enough synonyms to choose between. It could be that there is at most 1 match, which is only corresponds to the entity itself. For instance, "Glasgow" has 1 synset, which is the Glasgow synset itself. If this is the case, then no extra synonyms can be retrieved via synsets. To still obtain the correct links, the definition entry will be checked for nouns. Logically speaking, the definition includes nouns that relate Glasgow and thus these words can be used, in conjunction with the entity itself, to hopefully generate the most relevant or correct entity links. The nouns are extracted by using NLTK tokenization and removing all the stopwords from the sentence using "stopwords" corpora for English. This methodology was tested for various entities, such as Glasgow, with great success, as it generally finds the correct entity within at least the first 3 hits for a specific combination. Since again no guarantees can be made, the number of hits should be at least 10. If there are enough synonyms, such as for the entity "dog", the nouns in the definitions may not be used at all, as this would significantly slow down the process. Therefore, only the first 13 unique nouns will be used, in combination with the original entity, to generate the most relevant URI's. Again, this was tested rigorously through trial and error and these numbers showed the best performance in the end. 
 
 ### Model tests and choices
+
+Given contextualized embeddings are currently the most sophisticated representations for textual input, we decided to experiment with using contextualized embeddings to represent both the entity mention to be disambiguate and its respective candidate entities. (...)
