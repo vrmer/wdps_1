@@ -8,10 +8,8 @@ import json
 import trident
 import nltk
 from nltk.corpus import wordnet as wn
-from textblob import TextBlob
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import RegexpTokenizer
 from copy import deepcopy
 import string
 
@@ -21,7 +19,6 @@ nlp = spacy.load("en_core_web_sm")
 stop_words = set(stopwords.words("english"))
 stop_words.add("-")
 lemmatizer = WordNetLemmatizer()
-tokenizer = RegexpTokenizer(r'\w+')
 
 def search(query,size):
     """
@@ -41,10 +38,12 @@ def search(query,size):
             print(hit)
             print()
             print("---------------------------------")
-            label = hit['_source']['schema_name']
             id = hit['_id']
-            #id_labels.setdefault(id, set()).add(label)
-            id_labels.append(id)
+            label = hit['_source']['schema_name']
+            description = hit['_source']['schema_description']
+            rdfs_label = hit['_source']['rdfs_label']
+            uri_dict = {"uri": id, "rdfs": rdfs_label, "schema_name": label, "description": description}
+            id_labels.append(uri_dict)
     return id_labels
 
 
@@ -106,7 +105,7 @@ def sort_list_manually(to_sort, base):
 
     return to_sort
 
-def order_list_from_list(to_order, base, reverse):
+def order_list_from_list(to_sort, base, reverse):
     """
     Sort the list of synsets or entities in descending and ascending order respectively based on the base list.
 
@@ -116,95 +115,95 @@ def order_list_from_list(to_order, base, reverse):
     :return: a sorted list of synsets or entities
     """
     if reverse:
-        return [x for x in sort_list_manually(to_order,base)]
+        return [x for x in sort_list_manually(to_sort,base)]
     else:
-        return [x for _, x in sorted(zip(base, to_order))]
+        return [x for _, x in sorted(zip(base, to_sort))]
 
-def entity_generation():
+def entity_generation(check_entity, context):
     """
     Performs the entity generation for all entities and corresponding texts
 
     :return: a sorted list of URI's for the trident database.
     """
 
-    with open('entity_lists/list_of_entities_gua_1.txt', 'rb') as fp:
-        entity_list = pickle.load(fp)
+    #check_entity = entity["Entity"]
+    check_entity = "Washington"
+    #text = "The United States of America (U.S.A. or USA), commonly known as the United States (U.S. or US) or America, is a country primarily located in North America."
+    #text = "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797"
+    #context = ""
+    print("++++++++++++++++++++")
+    print("Checking for Entity: ", check_entity)
 
-    for idx, entity in enumerate( entity_list ):
+    synsets = wn.synsets(check_entity, pos=wn.NOUN)
 
-        if idx > 50:
-            exit(1)
+    if synsets:
+        search_size = 8
+        synset_length = len(synsets)
+        enable_triple_search = False
 
-        #check_entity = entity["Entity"]
-        check_entity = "Washington"
-        #text = "The United States of America (U.S.A. or USA), commonly known as the United States (U.S. or US) or America, is a country primarily located in North America."
-        #text = "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797"
-        text = ""
-        print("++++++++++++++++++++")
-        print("Checking for Entity: ", check_entity)
-
-        synsets = wn.synsets(check_entity, pos=wn.NOUN)
-
-        if synsets:
-            search_size = 8
-            synset_length = len(synsets)
-            enable_triple_search = False
-
-            if synset_length <= 1:
-                synonyms = list( set( get_nouns_from_definition(synsets)[0] ) )
+        if synset_length <= 1:
+            synonyms = list( set( get_nouns_from_definition(synsets)[0] ) )
+        else:
+            if not context:
+                best_synsets = synsets[:3]
+                best_definition = list( set( get_nouns_from_definition(synsets)[0] ) )
+                search_size = 8
             else:
-                if not text:
-                    best_synsets = synsets[:5]
-                    best_definition = list( set( get_nouns_from_definition(synsets)[0] ) )
-                else:
-                    best_synsets, best_definition = perform_similarity_algorithm(text, synsets)
+                best_synsets, best_definition = perform_similarity_algorithm(context, synsets)
 
-                synonyms = [lemma.name().replace("_", " ") for x in best_synsets for lemma in x.lemmas()]
-                synonyms = list( set( synonyms + best_definition ) )[:13]
+            synonyms = [lemma.name().replace("_", " ") for x in best_synsets for lemma in x.lemmas()]
+            synonyms = list( set( synonyms + best_definition ) )[:13]
 
-            #synonyms = ['George Washington', '1st', 'President', 'United', 'States', 'commander-in-chief', 'Continental', 'Army', 'American', 'Revolution', '1732-1799']
-            list_of_uris = []
-            synonyms_iter = synonyms[:-1]
+        #synonyms = ['George Washington', '1st', 'President', 'United', 'States', 'commander-in-chief', 'Continental', 'Army', 'American', 'Revolution', '1732-1799']
+        list_of_uris = []
+        synonyms_iter = synonyms[:-1]
 
-            for  synonym in synonyms:
-                print("++++++++++++++++++++")
-                print("CHECKING FOR ENTITY: ", check_entity, " AND SYNONYM: ", synonym)
-
-                list_of_uris += search(synonym, search_size)
-                list_of_uris += search("(%s) AND (%s)" % (check_entity, synonym), search_size)
-
-                print("++++++++++++++++++++")
-
-        else:
-            print("No Synsets detected,querying normally")
-            list_of_uris = search(check_entity,20)
-
-        list_of_uris = list ( set ( list_of_uris)) # For only obtaining the unique ones
-
-        '''
-        First split on "/", then take the last part of the URI including the entity number.
-        Afterwards, remove the Q and the ">" from the entity number to get the number itself
-        Then convert everything to int so that it can be sorted according to the entity numbers
-        '''
-        entity_numbers = [int(uri.split("/")[-1][1:][:-1]) for uri in list_of_uris]
-        ordered_uris = order_list_from_list(list_of_uris,entity_numbers, False)
-
-        if ordered_uris:
-            print("Entity: ", check_entity, " ;  Corresponding best URI: ", ordered_uris)
+        for  synonym in synonyms:
             print("++++++++++++++++++++")
-            print()
+            print("CHECKING FOR ENTITY: ", check_entity, " AND SYNONYM: ", synonym)
 
-        else:
-            print("No page found for entity: ", check_entity, ".  Continuing search.")
+            list_of_uris += search(synonym, search_size)
+            list_of_uris += search("(%s) AND (%s)" % (check_entity, synonym), search_size)
+
             print("++++++++++++++++++++")
-            print()
 
+    else:
+        print("No Synsets detected,querying normally")
+        list_of_uris = search(check_entity,20)
+
+    list_of_uris = list ( set ( list_of_uris)) # For only obtaining the unique ones
+
+    '''
+    First split on "/", then take the last part of the URI including the entity number.
+    Afterwards, remove the Q and the ">" from the entity number to get the number itself
+    Then convert everything to int so that it can be sorted according to the entity numbers
+    '''
+    entity_numbers = [int(dictionary["uri"].split("/")[-1][1:][:-1]) for dictionary in list_of_uris]
+    ordered_uris = order_list_from_list(list_of_uris,entity_numbers, False)
+
+    if ordered_uris:
+        print("Entity: ", check_entity, " ;  Corresponding best URI: ", ordered_uris)
+        print("++++++++++++++++++++")
+        print()
+
+    else:
+        print("No page found for entity: ", check_entity, ".  Continuing search.")
+        print("++++++++++++++++++++")
+        print()
+
+    return ordered_uris
+
+PKL_file = "outputs/CC-MAIN-20200927121105-20200927151105-00583_entities.pkl"
+
+with open(PKL_file, "rb") as infile:
+    texts = pickle.load(infile)
+
+for key, entities in texts.items():
+    print(entities)
+    for idx,entity_tuple in enumerate(entities):
+        #mention, label, context = entity_tuple
+        #print(entity_tuple)
         exit(1)
+        #list_of_uris = entity_generation(mention,context)
 
-entity_generation()
-
-
-
-
-
-
+#entity_generation("Washington", "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
