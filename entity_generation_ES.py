@@ -201,6 +201,6 @@ with open(PKL_file, "rb") as infile:
 for key, entities in texts.items():
     for idx,entity_tuple in enumerate(entities):
         mention, label, context = entity_tuple
-        #list_of_uris = entity_generation(mention,context)
+        list_of_uris = entity_generation("Washington", "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
 
 #entity_generation("Washington", "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
