@@ -1,15 +1,32 @@
-from entity_generation_ES import entity_generation
-from src.context_vectors_2 import get_similarity_scores
+from src.entity_generation_ES import entity_generation
 import argparse
 import pickle
 
 PKL_FILE = 'outputs/CC-MAIN-20201001210429-20201002000429-00799_entities.pkl'
 
 def parse_arguments():
-    parser =argparse.ArgumentParser(description='Parser for Entity Linking Program')
+    cmd_parser =argparse.ArgumentParser(description='Parser for Entity Linking Program')
 
-    parser.add_argument('process_warcs', type=bool,
-                        help='Required argument, write 1 if you want to process the warc file(s), 0 otherwise')
+    cmd_parser.add_argument('-p', '--process_warcs', type=bool,
+                        help="Required argument, write 'True' if you want to process the warc file(s), False otherwise")
+
+    cmd_parser.add_argument('-s', '--save_es_results', type=bool,
+                        help='Required argument, write 1 if you want to process and save the candidates '
+                             'of the entity generation, 0 otherwise')
+
+    known_args = cmd_parser.parse_known_args()
+
+    option_parser = argparse.ArgumentParser()
+
+    if known_args[0]:
+        option_parser.add_argument('-fp', '--filename_warcs', required=True,
+                                   help='Required if -p == 1, mention filename(s) that need ')
+
+    if not known_args[1]:
+        option_parser.add_argument('-fs', '--filename_es_results', required=True, help='set input json file')
+
+
+    option_parser.parse_known_args()
 
     # Optional positional argument
     parser.add_argument('opt_pos_arg', type=int, nargs='?',

@@ -22,18 +22,14 @@ def search(query,size):
     :param size: determines the number of URIs returned from Elastic Search
     :return: a list of URI's from the search process
     """
-    e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
-    # e = Elasticsearch('http://localhost:9200')
-    #e = Elasticsearch(timeout=30)
+    #e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
+    #e = Elasticsearch('http://localhost:9200')
+    e = Elasticsearch(timeout=30)
     p = { "query" : { "query_string" : { "query" : query } }, "size":size}
     response = e.search(index="wikidata_en", body=json.dumps(p))
     id_labels = []
     if response:
         for hit in response['hits']['hits']:
-            print()
-            print(hit)
-            print()
-            print("---------------------------------")
             id = hit['_id']
             label = hit['_source']['schema_name']
             if "schema_description" in hit['_source']:
@@ -41,8 +37,7 @@ def search(query,size):
             else:
                 description = ""
             rdfs_label = hit['_source']['rdfs_label']
-            score = hit["_score"]
-            uri_dict = {"uri": id, "score": score, "rdfs": rdfs_label, "name": label, "description": description}
+            uri_dict = {"uri": id, "rdfs": rdfs_label, "name": label, "description": description}
             id_labels.append(uri_dict)
     return id_labels
 
@@ -120,6 +115,15 @@ def order_list_from_list(to_sort, base, reverse):
         return [x for _, x in sorted(zip(base, to_sort), key = lambda pair: pair[0])]
 
 def filter_uris(list_of_uris, entity):
+    """
+    Filter the uris based on the content of the 'schema_description' and on the inclusion of the entity within either
+    schema_name or schema_description. Remove uri through a list comprehension at the end
+
+    :param list_of_uris: the list of dictionaries containing information per found entity
+    :param entity: the entity for which the search was performed
+    :return: a filtered list of dictionaries containing the uri's for the searched entity.
+    """
+
     to_delete = []
     for idx,uri_dict in enumerate(list_of_uris):
         if entity not in uri_dict["name"] and entity not in uri_dict["description"]:
@@ -135,14 +139,6 @@ def entity_generation(check_entity, context):
 
     :return: a sorted list of URI's for the trident database.
     """
-
-    #check_entity = entity["Entity"]
-    check_entity = "Washington"
-    #text = "The United States of America (U.S.A. or USA), commonly known as the United States (U.S. or US) or America, is a country primarily located in North America."
-    #text = "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797"
-    #context = ""
-    print("++++++++++++++++++++")
-    print("Running ES for Entity: ", check_entity)
 
     synsets = wn.synsets(check_entity, pos=wn.NOUN)
 
@@ -163,29 +159,22 @@ def entity_generation(check_entity, context):
             synonyms = [lemma.name().replace("_", " ") for x in best_synsets for lemma in x.lemmas()]
             synonyms = list( set( synonyms + best_definition ) )[:13]
 
-        #synonyms = ['George Washington', '1st', 'President', 'United', 'States', 'commander-in-chief', 'Continental', 'Army', 'American', 'Revolution', '1732-1799']
-
         list_of_uris = []
-        synonyms_iter = synonyms[:-1]
 
-        for  synonym in synonyms:
-            print("CHECKING FOR ENTITY: ", check_entity, " AND SYNONYM: ", synonym)
-
+        for synonym in synonyms:
             list_es = search("(%s) AND (%s)" % (check_entity, synonym), search_size)
             list_of_uris += list_es
+
             if not list_es:
                 continue
             else:
                 list_of_uris += search(synonym, search_size)
 
-
-            print("++++++++++++++++++++")
-
     else:
         print("No Synsets detected,querying normally")
         list_of_uris = search(check_entity,20)
 
-
+    #Find all unique dictionaries in the list and filter the URI
     list_of_uris = [dict(t) for t in {tuple(d.items()) for d in list_of_uris}]
     list_of_uris = filter_uris(list_of_uris, check_entity)
 
@@ -195,36 +184,9 @@ def entity_generation(check_entity, context):
     Then convert everything to int so that it can be sorted according to the entity numbers
     '''
     entity_numbers = [int(dictionary["uri"].split("/")[-1][1:][:-1]) for dictionary in list_of_uris]
-    print(list_of_uris, entity_numbers)
     ordered_uris = order_list_from_list(list_of_uris, entity_numbers, False)
 
-    print([dic["score"] for dic in ordered_uris])
-
-    if ordered_uris:
-        print("Entity: ", check_entity, " ;  Corresponding best URI: ", ordered_uris)
-        print("++++++++++++++++++++")
-        print()
-
-    else:
-        print("No page found for entity: ", check_entity, ".  Continuing search.")
-        print("++++++++++++++++++++")
-        print()
+    if not ordered_uris:
+        ordered_uris = []
 
     return ordered_uris
-
-PKL_file = "outputs/CC-MAIN-20200927121105-20200927151105-00583_entities.pkl"
-
-with open(PKL_file, "rb") as infile:
-    texts = pickle.load(infile)
-
-for key, entities in texts.items():
-    for idx, entity_tuple in enumerate(entities):
-        mention, label, context = entity_tuple
-        list_of_uris = entity_generation("Washington",
-                                         "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
-        exit(1)
-
-# test_list = [5,8,1,4,2]
-# test_dict = [{"uri": "1", "value":8}, {"uri": "2", "value":1}, {"uri": "3", "value":9}, {"uri": "4", "value":0}, {"uri": "5", "value":5}]
-#
-# print(order_list_from_list(test_dict, test_list, False))
