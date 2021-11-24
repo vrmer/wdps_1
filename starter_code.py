@@ -1,74 +1,41 @@
-import gzip
+from entity_generation_ES import entity_generation
+from src.context_vectors_2 import get_similarity_scores
+import argparse
+import pickle
 
+PKL_FILE = 'outputs/CC-MAIN-20201001210429-20201002000429-00799_entities.pkl'
 
-KEYNAME = "WARC-TREC-ID"
+def parse_arguments():
+    parser =argparse.ArgumentParser(description='Parser for Entity Linking Program')
 
-# The goal of this function process the webpage and returns a list of labels -> entity ID
-def find_labels(payload):
-    if payload == '':
-        return
+    parser.add_argument('process_warcs', type=bool,
+                        help='Required argument, write 1 if you want to process the warc file(s), 0 otherwise')
 
-    # The variable payload contains the source code of a webpage and some additional meta-data.
-    # We firt retrieve the ID of the webpage, which is indicated in a line that starts with KEYNAME.
-    # The ID is contained in the variable 'key'
-    key = None
-    for line in payload.splitlines():
-        if line.startswith(KEYNAME):
-            key = line.split(': ')[1]
-            break
+    # Optional positional argument
+    parser.add_argument('opt_pos_arg', type=int, nargs='?',
+                        help='An optional integer positional argument')
 
-    # Problem 1: The webpage is typically encoded in HTML format.
-    # We should get rid of the HTML tags and retrieve the text. How can we do it?
+    # Optional argument
+    parser.add_argument('--opt_arg', type=int,
+                        help='An optional integer argument')
 
-    # Problem 2: Let's assume that we found a way to retrieve the text from a webpage. How can we recognize the
-    # entities in the text?
+    # Switch
+    parser.add_argument('--switch', action='store_true',
+                        help='A boolean switch')
 
-    # Problem 3: We now have to disambiguate the entities in the text. For instance, let's assugme that we identified
-    # the entity "Michael Jordan". Which entity in Wikidata is the one that is referred to in the text?
-
-    # To tackle this problem, you have access to two tools that can be useful. The first is a SPARQL engine (Trident)
-    # with a local copy of Wikidata. The file "test_sparql.py" shows how you can execute SPARQL queries to retrieve
-    # valuable knowledge. Please be aware that a SPARQL engine is not the best tool in case you want to lookup for
-    # some strings. For this task, you can use elasticsearch, which is also installed in the docker image.
-    # The file start_elasticsearch_server.sh will start the elasticsearch server while the file
-    # test_elasticsearch_server.py shows how you can query the engine.
-
-    # A simple implementation would be to first query elasticsearch to retrieve all the entities with a label
-    # that is similar to the text found in the web page. Then, you can access the SPARQL engine to retrieve valuable
-    # knowledge that can help you to disambiguate the entity. For instance, if you know that the webpage refers to persons
-    # then you can query the knowledge base to filter out all the entities that are not persons...
-
-    # Obviously, more sophisticated implementations that the one suggested above are more than welcome :-)
-
-
-    # For now, we are cheating. We are going to returthe labels that we stored in sample-labels-cheat.txt
-    # Instead of doing that, you should process the text to identify the entities. Your implementation should return
-    # the discovered disambiguated entities with the same format so that I can check the performance of your program.
-    cheats = dict((line.split('\t', 2) for line in open('data/sample-labels-cheat.txt').read().splitlines()))
-    for label, wikidata_id in cheats.items():
-        if key and (label in payload):
-            yield key, label, wikidata_id
-
-
-def split_records(stream):
-    payload = ''
-    for line in stream:
-        if line.strip() == "WARC/1.0":
-            yield payload
-            payload = ''
-        else:
-            payload += line
-    yield payload
 
 if __name__ == '__main__':
-    import sys
-    try:
-        _, INPUT = sys.argv
-    except Exception as e:
-        print('Usage: python starter-code.py INPUT')
-        sys.exit(0)
 
-    with gzip.open(INPUT, 'rt', errors='ignore') as fo:
-        for record in split_records(fo):
-            for key, label, wikidata_id in find_labels(record):
-                print(key + '\t' + label + '\t' + wikidata_id)
+    parse_arguments()
+
+
+    with open(PKL_file, "rb") as infile:
+        texts = pickle.load(infile)
+
+    for key, entities in texts.items():
+        for idx, entity_tuple in enumerate(entities):
+            mention, label, context = entity_tuple
+            list_of_uris = entity_generation("Washington",
+                                             "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
+            exit(1)
+

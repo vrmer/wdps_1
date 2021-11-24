@@ -206,51 +206,49 @@ def get_representation(span, text):
 #
 #     return candidate_vec
 
-if __name__ == '__main__':
+PKL_FILE = 'outputs/CC-MAIN-20201001210429-20201002000429-00799_entities.pkl'
 
-    PKL_FILE = 'outputs/CC-MAIN-20201001210429-20201002000429-00799_entities.pkl'
+# initialize BERT
+MODEL_NAME = 'bert-base-uncased'
+config = BertConfig.from_pretrained(MODEL_NAME, output_hidden_states=True)
+model = BertModel.from_pretrained(MODEL_NAME, config=config)
+tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
+model.eval()
 
-    # initialize BERT
-    MODEL_NAME = 'bert-base-uncased'
-    config = BertConfig.from_pretrained(MODEL_NAME, output_hidden_states=True)
-    model = BertModel.from_pretrained(MODEL_NAME, config=config)
-    tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
-    model.eval()
+# generate mention vectors
+with open(PKL_FILE, 'rb') as infile:
+    texts = pickle.load(infile)
 
-    # generate mention vectors
-    with open(PKL_FILE, 'rb') as infile:
-        texts = pickle.load(infile)
+start = time.perf_counter()
 
-    start = time.perf_counter()
+# counter = 0
+# c = 0
+for key, entities in texts.items():
+    for lb, entity_list in entities.items():
+        for entity_tuple in entity_list:
+            try:
+                mention, label, context = entity_tuple
+                # c += 1
+                # print(c)
+            except ValueError:
+                # print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+                # print(entity_list)
+                # print(type(entity_list))
+                # # counter += 1
+                # # print(counter)
+                exit()
+            try:
+                mention_vec = get_representation(mention, context)
+            except RuntimeError:
+                print(mention)
+                print(context)
+                print('------------------------------------------')
+                print()
 
-    # counter = 0
-    # c = 0
-    for key, entities in texts.items():
-        for lb, entity_list in entities.items():
-            for entity_tuple in entity_list:
-                try:
-                    mention, label, context = entity_tuple
-                    # c += 1
-                    # print(c)
-                except ValueError:
-                    # print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-                    # print(entity_list)
-                    # print(type(entity_list))
-                    # # counter += 1
-                    # # print(counter)
-                    exit()
-                try:
-                    mention_vec = get_representation(mention, context)
-                except RuntimeError:
-                    print(mention)
-                    print(context)
-                    print('------------------------------------------')
-                    print()
+end = time.perf_counter()
 
-    end = time.perf_counter()
-
-    total_time = end - start
-    print(f'Total time spent in encoding: {total_time}')
+total_time = end - start
+print(f'Total time spent in encoding: {total_time}')
 
 
     # # generate mention vectors

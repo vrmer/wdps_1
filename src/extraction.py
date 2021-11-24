@@ -159,7 +159,7 @@ def process_archive(archive_path):
         pickle.dump(output_dict, outfile)
 
 
-if __name__ == '__main__':
+def start_processing_warcs():
 
     all_paths = glob.glob('data/warcs/**.gz')
     processes = len(all_paths)

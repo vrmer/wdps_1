@@ -1,10 +1,6 @@
-import gzip
-import sys
-import requests
 import pickle
 from elasticsearch import Elasticsearch
 import json
-import trident
 import nltk
 from nltk.corpus import wordnet as wn
 from nltk.corpus import stopwords
@@ -26,9 +22,9 @@ def search(query,size):
     :param size: determines the number of URIs returned from Elastic Search
     :return: a list of URI's from the search process
     """
-    # e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/")
+    e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
     # e = Elasticsearch('http://localhost:9200')
-    e = Elasticsearch(timeout=30)
+    #e = Elasticsearch(timeout=30)
     p = { "query" : { "query_string" : { "query" : query } }, "size":size}
     response = e.search(index="wikidata_en", body=json.dumps(p))
     id_labels = []
@@ -126,9 +122,7 @@ def order_list_from_list(to_sort, base, reverse):
 def filter_uris(list_of_uris, entity):
     to_delete = []
     for idx,uri_dict in enumerate(list_of_uris):
-        print(idx)
         if entity not in uri_dict["name"] and entity not in uri_dict["description"]:
-            print(uri_dict)
             to_delete.append(idx)
         elif "Wikipedia disambiguation page" in uri_dict["description"]:
             to_delete.append(idx)
@@ -193,9 +187,7 @@ def entity_generation(check_entity, context):
 
 
     list_of_uris = [dict(t) for t in {tuple(d.items()) for d in list_of_uris}]
-    print(len(list_of_uris))
     list_of_uris = filter_uris(list_of_uris, check_entity)
-    print(len(list_of_uris))
 
     '''
     First split on "/", then take the last part of the URI including the entity number.
@@ -203,6 +195,7 @@ def entity_generation(check_entity, context):
     Then convert everything to int so that it can be sorted according to the entity numbers
     '''
     entity_numbers = [int(dictionary["uri"].split("/")[-1][1:][:-1]) for dictionary in list_of_uris]
+    print(list_of_uris, entity_numbers)
     ordered_uris = order_list_from_list(list_of_uris, entity_numbers, False)
 
     print([dic["uri"] for dic in ordered_uris])
@@ -225,10 +218,8 @@ with open(PKL_file, "rb") as infile:
     texts = pickle.load(infile)
 
 for key, entities in texts.items():
-    for idx,entity_tuple in enumerate(entities):
+    for idx, entity_tuple in enumerate(entities):
         mention, label, context = entity_tuple
-        list_of_uris = entity_generation("Washington", "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
+        list_of_uris = entity_generation("Washington",
+                                         "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
         exit(1)
-
-#entity_generation("Washington", "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
-'Washington'
