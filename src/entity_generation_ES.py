@@ -13,6 +13,8 @@ KBPATH='assets/wikidata-20200203-truthy-uri-tridentdb'
 stop_words = set(stopwords.words("english"))
 stop_words.add("-")
 lemmatizer = WordNetLemmatizer()
+punctuation = ['!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`', '(', ')',
+               '"', '=', '>', ';', '@', '\'', '*', '+']
 
 def search(query,size):
     """
@@ -22,9 +24,9 @@ def search(query,size):
     :param size: determines the number of URIs returned from Elastic Search
     :return: a list of URI's from the search process
     """
-    #e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
+    e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
     #e = Elasticsearch('http://localhost:9200')
-    e = Elasticsearch(timeout=30)
+    #e = Elasticsearch(timeout=30)
     p = { "query" : { "query_string" : { "query" : query } }, "size":size}
     response = e.search(index="wikidata_en", body=json.dumps(p))
     id_labels = []
@@ -55,7 +57,7 @@ def perform_similarity_algorithm(text, synsets):
     text_tok = nltk.word_tokenize(text)
     is_noun = lambda pos: pos[:2] == "NN"
     text_clean = [lemmatizer.lemmatize(word) for (word,pos) in nltk.pos_tag(text_tok) \
-                  if word.strip() not in stop_words and word.strip() not in string.punctuation and not word.strip().isdigit() and is_noun]
+                  if word.strip() not in stop_words and word.strip() not in punctuation and not word.strip().isdigit() and is_noun]
 
     definitions = get_nouns_from_definition(synsets)
     list_of_counts = []
@@ -79,7 +81,7 @@ def get_nouns_from_definition(synsets):
     definitions = [x.definition() for x in synsets]
     is_noun = lambda pos:pos[:2] == "NN"
     return [ [word for (word,pos) in nltk.pos_tag(nltk.word_tokenize(definition)) \
-            if word.strip() not in stop_words and word.strip() not in string.punctuation and not word.strip().isdigit() and is_noun ] \
+            if word.strip() not in stop_words and word.strip() not in punctuation and not word.strip().isdigit() and is_noun ] \
             for definition in definitions]
 
 def sort_list_manually(to_sort, base):
