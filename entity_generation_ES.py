@@ -148,7 +148,7 @@ def entity_generation(check_entity, context):
     #text = "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797"
     #context = ""
     print("++++++++++++++++++++")
-    print("Checking for Entity: ", check_entity)
+    print("Running ES for Entity: ", check_entity)
 
     synsets = wn.synsets(check_entity, pos=wn.NOUN)
 
@@ -175,13 +175,14 @@ def entity_generation(check_entity, context):
         synonyms_iter = synonyms[:-1]
 
         for  synonym in synonyms:
-            print("++++++++++++++++++++")
             print("CHECKING FOR ENTITY: ", check_entity, " AND SYNONYM: ", synonym)
 
             list_es = search("(%s) AND (%s)" % (check_entity, synonym), search_size)
             if not list_es:
+                list_of_uris += list_es
                 continue
-            list_of_uris += search(synonym, search_size)
+            else:
+                list_of_uris += list_es + search(synonym, search_size)
 
 
             print("++++++++++++++++++++")
@@ -191,7 +192,7 @@ def entity_generation(check_entity, context):
         list_of_uris = search(check_entity,20)
 
 
-    #list_of_uris = [dict(t) for t in {tuple(d.items()) for d in list_of_uris}]
+    list_of_uris = [dict(t) for t in {tuple(d.items()) for d in list_of_uris}]
     print(len(list_of_uris))
     list_of_uris = filter_uris(list_of_uris, check_entity)
     print(len(list_of_uris))
