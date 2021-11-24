@@ -3,37 +3,42 @@ from src.entity_generation_ES import entity_generation
 from src.context_vectors_2 import get_similarity_scores
 import argparse
 import pickle
+import sys
+
+def str2bool(v):
+  return str(v).lower() in ("yes", "true", "t", "1")
 
 def parse_cmd_arguments():
+
     cmd_parser =argparse.ArgumentParser(description='Parser for Entity Linking Program')
 
-    cmd_parser.add_argument('-p', '--process_warcs', type=bool,
-                        help="Required argument, write 'True' if you want to process the warc file(s), False otherwise")
-
-    cmd_parser.add_argument('-s', '--save_es_results', type=bool,
+    cmd_parser.add_argument('-s', '--save_es_results', type=str,
                         help='Required argument, write 1 if you want to process and save the candidates '
                              'of the entity generation, 0 otherwise')
 
-    parsed = cmd_parser.parse_known_args()[0]
-    warc_bool = parsed.process_warcs
-    es_bool = parsed.save_es_results
+    cmd_parser.add_argument('-p', '--process_warcs', type=str, required= False,
+                        help="Optional argument, write 'True' if you want to process the warc file(s), False otherwise")
 
-    option_parser = argparse.ArgumentParser()
-
-    if warc_bool == 'False':
-        option_parser.add_argument('-fp', '--filename_warcs', required=True,
+    cmd_parser.add_argument('-fp', '--filename_warcs', required='-p' in sys.argv,
                                    help="Required if -p == False, create a txt with the names of all the WARC picle files, "
                                         "seperated by a '\\n' that need to be imported in the program")
-        filename_warcs = option_parser.parse_args()[0].filename_warcs
+
+    parsed = cmd_parser.parse_args()
+    warc_bool = str2bool(parsed.process_warcs)
+    es_bool = str2bool(parsed.save_es_results)
+
+    if not warc_bool:
+        filename_warcs = parsed.filename_warcs
     else:
         filename_warcs = None
 
     return warc_bool, es_bool, filename_warcs
 
+
 def read_all_warcs(list_of_warcs):
     list_of_texts = []
     for warc in list_of_warcs:
-        with open(warc, "rb") as infile:
+        with open("outputs/" + warc, "rb") as infile:
             texts = pickle.load(infile)
             list_of_texts.append(texts)
 
@@ -43,7 +48,7 @@ def read_all_warcs(list_of_warcs):
 def read_all_es_results(list_of_names):
     list_of_candidates = []
     for file in list_of_names:
-        with open(file, "rb") as infile:
+        with open("outputs/" + file, "rb") as infile:
             candidates = pickle.load(infile)
             list_of_candidates.append(candidates)
 

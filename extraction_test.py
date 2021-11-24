@@ -32,6 +32,7 @@ EXCEPTIONS = {re_compile(x) for x in EXCEPTIONS}
 
 PUNCTUATION = {'!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`', '(', ')',
                '"', '=', '>', ';', '@', '\'', '*', '+', '?', '_', '...', ',', '--', }
+
 STR_PUNCTUATION = ''.join([punct for punct in PUNCTUATION])
 # print(STR_PUNCTUATION)
 
