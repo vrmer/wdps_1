@@ -27,6 +27,8 @@ TARGET_LABELS = {'EVENT', 'GPE', 'LOC', 'NORP',
 PUNCTUATION = {'!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`', '(', ')', '"', '=', '>', ';'}
 
 
+
+
 def split_records(stream):
     """
     Splits a WARC archive into individual websites (records).
@@ -52,12 +54,16 @@ def filter_for_english_text(payload):
     :param payload: an instance of a WARC record
     :return: a string of text or None if nothing of that kind is found
     """
+    # TODO: nothing is found in the sample.warc.gz file
     for line in payload.splitlines():
         if '<!DOCTYPE html>' in line:
             soup = BeautifulSoup(line, features='html5lib')
             text = soup.body.get_text(strip=True).strip()
             text = text.replace('\ufeff', '')
+            # print(soup)
+            # exit(1)
             if text:
+                # print(text)
                 # text = html2text.html2text(text).lstrip(PUNCTUATION).strip()
                 text = html2text.html2text(text).strip()
                 try:
@@ -162,3 +168,5 @@ if __name__ == '__main__':
 
     with get_context('spawn').Pool(processes) as p:
         p.map(process_archive, all_paths)
+
+    # process_archive('/Users/marcellfekete/PycharmProjects/wdps_1/data/sample.warc.gz')
