@@ -117,7 +117,7 @@ def order_list_from_list(to_sort, base, reverse):
     if reverse:
         return [x for x in sort_list_manually(to_sort,base)]
     else:
-        return [x for _, x in sorted(zip(base, to_sort))]
+        return [x for _, x in sorted(zip(base, to_sort), key = lambda pair: pair[0])]
 
 def filter_uris(list_of_uris, entity):
     to_delete = []
@@ -172,11 +172,11 @@ def entity_generation(check_entity, context):
             print("CHECKING FOR ENTITY: ", check_entity, " AND SYNONYM: ", synonym)
 
             list_es = search("(%s) AND (%s)" % (check_entity, synonym), search_size)
+            list_of_uris += list_es
             if not list_es:
-                list_of_uris += list_es
                 continue
             else:
-                list_of_uris += list_es + search(synonym, search_size)
+                list_of_uris += search(synonym, search_size)
 
 
             print("++++++++++++++++++++")
@@ -198,7 +198,7 @@ def entity_generation(check_entity, context):
     print(list_of_uris, entity_numbers)
     ordered_uris = order_list_from_list(list_of_uris, entity_numbers, False)
 
-    print([dic["uri"] for dic in ordered_uris])
+    print([dic["score"] for dic in ordered_uris])
 
     if ordered_uris:
         print("Entity: ", check_entity, " ;  Corresponding best URI: ", ordered_uris)
@@ -223,3 +223,8 @@ for key, entities in texts.items():
         list_of_uris = entity_generation("Washington",
                                          "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
         exit(1)
+
+# test_list = [5,8,1,4,2]
+# test_dict = [{"uri": "1", "value":8}, {"uri": "2", "value":1}, {"uri": "3", "value":9}, {"uri": "4", "value":0}, {"uri": "5", "value":5}]
+#
+# print(order_list_from_list(test_dict, test_list, False))
