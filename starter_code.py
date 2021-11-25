@@ -102,7 +102,7 @@ def generate_and_save_entities(warcs, slice_no, slices):
                     dict_of_candidates[mention] = list_of_uris
                     print("Entity search completed for: ", mention)
                     print("Best Result:", list_of_uris if not list_of_uris else list_of_uris[0])
-                    exit(1)
+                    # exit(1)
                     if idx > 200:
                         print(time.time()-start)
                         exit(1)
@@ -145,11 +145,11 @@ if __name__ == '__main__':
     # exit(1)
     # subdicts = split_entity_dict(warc_texts[0], slices)
 
-    subdicts = [
-        [{'1': [('Washington', 'ORG', 'This is Washington.')]}],
-        [{'2': [('Adams', 'PER', 'This is an Adams.')]}],
-        [{'3': [('Budapest', 'LOC', 'Budapest is a great city.')]}]
-    ]
+    # subdicts = [
+    #     [{'1': [('Washington', 'ORG', 'This is Washington.')]}],
+    #     [{'2': [('Adams', 'PER', 'This is an Adams.')]}],
+    #     [{'3': [('Budapest', 'LOC', 'Budapest is a great city.')]}]
+    # ]
 
     if es_bool:
         # e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
@@ -162,7 +162,10 @@ if __name__ == '__main__':
         # candidate_dict = use_elasticsearch(subdicts)
         # pool = Pool(1)
         # pool.map(use_elasticsearch, warc_texts)
-        pool.starmap(generate_and_save_entities, zip(subdicts, range(slices), slice_list))
+        entities = pool.starmap(generate_and_save_entities, zip(subdicts, range(slices), slice_list))
+        print()
+        for entity in entities:
+            print(entity)
         # pool.map(generate_and_save_entities, subdicts)
         exit(1)
     else:
