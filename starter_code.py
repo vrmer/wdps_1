@@ -149,11 +149,11 @@ if __name__ == '__main__':
     # exit(1)
     # subdicts = split_entity_dict(warc_texts[0], slices)
 
-    # subdicts = [
-    #     [{'1': [('Washington', 'ORG', 'This is Washington.')]}],
-    #     [{'2': [('Adams', 'PER', 'This is an Adams.')]}],
-    #     [{'3': [('Budapest', 'LOC', 'Budapest is a great city.')]}]
-    # ]
+    subdicts = [
+        [{'1': [('Washington', 'ORG', 'This is Washington.')]}],
+        [{'2': [('Adams', 'PER', 'This is an Adams.')]}],
+        [{'3': [('Budapest', 'LOC', 'Budapest is a great city.')]}]
+    ]
 
     if es_bool:
         # e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
@@ -171,6 +171,9 @@ if __name__ == '__main__':
         for entity in entities:
             print(entity)
         # pool.map(generate_and_save_entities, subdicts)
+        # exit(1)
+        with open('outputs/test_dict.pkl', 'wb') as f:
+            pickle.dump(entities, f)
         exit(1)
     else:
         with open("outputs/candidate_dictionary.pkl", "rb") as f:
