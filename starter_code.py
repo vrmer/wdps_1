@@ -1,6 +1,6 @@
 from src.extraction import start_processing_warcs
 from src.entity_generation_ES import entity_generation
-from src.context_vectors_2 import get_similarity_scores
+from src.candidate_selection import candidate_selection
 import argparse
 import pickle
 import sys
@@ -24,6 +24,10 @@ def parse_cmd_arguments():
                                    help="Required if -p == False, create a txt with the names of all the WARC picle files, "
                                         "seperated by a '\\n' that need to be imported in the program")
 
+    cmd_parser.add_argument('-model', '--model_for_ranking', choices=['popularity','lesk','glove','bert'], required=True,
+                            help="Required argument, write which model to use for candidate ranking. Possible options:"
+                            "popularity | lesk | glove | bert")
+
 
     parsed = cmd_parser.parse_args()
     if parsed.process_warcs is None:
@@ -38,7 +42,7 @@ def parse_cmd_arguments():
     else:
         filename_warcs = None
 
-    return warc_bool, es_bool, filename_warcs
+    return warc_bool, es_bool, filename_warcs, parsed.model_for_ranking
 
 
 def read_all_warcs(list_of_warcs):
@@ -87,9 +91,22 @@ def generate_and_save_entities(warcs):
 
     return dict_of_candidates
 
+def disambiguate_entities (warc_texts, candidate_dict,method='popularity'):
+
+    start = time.perf_counter()
+
+    output = candidate_selection(warc_texts,candidate_dict,method)
+
+    end = time.perf_counter()
+
+    total_time = end - start
+    print(f'Total time spent in disambiguating: {total_time}')
+
+    return output
+
 if __name__ == '__main__':
 
-    warc_bool, es_bool, fw = parse_cmd_arguments()
+    warc_bool, es_bool, fw, model_for_selection = parse_cmd_arguments()
 
     if warc_bool:
         list_of_warcnames = start_processing_warcs()
@@ -105,12 +122,12 @@ if __name__ == '__main__':
         with open("outputs/candidate_dictionary.pkl", "rb") as f:
             candidate_dict = pickle.load(f)
 
+    output = disambiguate_entities(warc_texts, candidate_dict, model_for_selection)
+    with open("outputs/output.txt", 'w') as outfile:
+        for entity_tuple in output:
+            outfile.write(f'{entity_tuple[0]} {entity_tuple[1]}{chr(10)}')  # chr 10 = new line
 
-    #run_context_vector_script(warc_texts, list_of_candidates_per_warc)
-
-
-
-
+    # testing score.py
 
     # with open(PKL_file, "rb") as infile:
     #     texts = pickle.load(infile)
