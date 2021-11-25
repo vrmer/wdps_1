@@ -150,9 +150,12 @@ if __name__ == '__main__':
     # subdicts = split_entity_dict(warc_texts[0], slices)
 
     subdicts = [
-        [{'1': [('Washington', 'ORG', 'This is Washington.')]}],
-        [{'2': [('Adams', 'PER', 'This is an Adams.')]}],
-        [{'3': [('Budapest', 'LOC', 'Budapest is a great city.')]}]
+        [{'1a': [('Washington', 'ORG', 'This is Washington.')]},
+         {'1b': [('Adams', 'ORG', 'Oh my god, I want an Adams.')]}],
+        [{'2a': [('Adams', 'PER', 'This is an Adams.')]},
+         {'2b': [('Hamilton', 'PER', 'Alexander Hamilton.')]}],
+        [{'3': [('Budapest', 'LOC', 'Budapest is a great city.'),
+                ('Washington', 'EVENT', 'Washington Day is the greatest day on Earth.')]}]
     ]
 
     if es_bool:
