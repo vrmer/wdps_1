@@ -1,4 +1,7 @@
 from functools import partial
+
+import fasttext
+
 from src.extraction import start_processing_warcs
 from src.entity_generation_ES import entity_generation
 # from src.context_vectors_2 import get_similarity_scores
@@ -100,7 +103,7 @@ def generate_and_save_entities(warcs, slice_no, slices):
                 if mention not in dict_of_candidates.keys():
                     list_of_uris = entity_generation(mention, context, slice_no, slices)
                     dict_of_candidates[mention] = list_of_uris
-                    print("Entity search completed for: ", mention)
+                    print(f"{slice_no}\tEntity search completed for: ", mention)
                     print("Best Result:", list_of_uris if not list_of_uris else list_of_uris[0])
                     # exit(1)
                     if idx > 200:
@@ -117,12 +120,13 @@ def generate_and_save_entities(warcs, slice_no, slices):
 
 if __name__ == '__main__':
 
-    slices = 3
+    lang_det = fasttext.load_model('lid.176.ftz')
+    slices = 5
 
     warc_bool, es_bool, fw = parse_cmd_arguments()
 
     if warc_bool:
-        list_of_warcnames = start_processing_warcs()
+        list_of_warcnames = start_processing_warcs(lang_det)
     else:
         with open(fw) as f:
             list_of_warcnames = list(f.readlines())
@@ -133,7 +137,7 @@ if __name__ == '__main__':
     # print(len(warc_texts[0]))
 
     subdicts = split_entity_dict(warc_texts[0], slices)
-    slice_list = [3, 3, 3]
+    slice_list = [slices]*slices
     # print(len(subdicts))
     # exit(1)
 
