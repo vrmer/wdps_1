@@ -1,40 +1,32 @@
 import os
 import re
 import gzip
-import glob
 import spacy
 import pickle
 import fasttext
 import html5lib
 from bs4 import BeautifulSoup
-from multiprocessing import get_context
 
 
 # loading the spacy language model
 nlp = spacy.load('en_core_web_md')
-
-# loading the language detection model
-# lang_det = fasttext.load_model('lid.176.ftz')
-# fasttext.FastText.eprint = lambda x: None
 
 # define some constants regarding where the WARC record IDs can be found
 # as well as which NER labels we are filtering for
 KEYNAME = 'WARC-Record-ID'
 TARGET_LABELS = {'GPE', 'LOC',
                  'ORG', 'PERSON', 'PRODUCT', 'WORK_OF_ART',
-                 'LAW', 'FAC'}  # removed EVENT and NORP and LANGUAGE
+                 'LAW', 'FAC'}  # TODO: removed EVENT and NORP and LANGUAGE
 
+# exceptions we decided to exclude due to their frequency and lack of relevance
 EXCEPTIONS = {'WARC-Type', 'GMTCache-Control', 'User-AgentConnection', 'GTMContent-Type', 'ul li' '9px',"WARC-Targ", "h3", "WARC-Target"}
 re_compile = lambda x: re.compile(f'(^)?{x}.*$')
-
 EXCEPTIONS = {re_compile(x) for x in EXCEPTIONS}
-# print(EXCEPTIONS)
 
+# punctuation that we exclude when attempting to find entities
 PUNCTUATION = {'!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`', '(', ')',
                '"', '=', '>', ';', '@', '\'', '*', '+', '?', '_', '...', ',', '--', ':', '\''}
-
 STR_PUNCTUATION = ''.join([punct for punct in PUNCTUATION])
-# print(STR_PUNCTUATION)
 
 list_of_filenames = []
 
@@ -67,33 +59,23 @@ def filter_for_english_text(payload, lang_det):
     """
     out_text = ''
     skip = True
-    # print(skip)
 
     payload_content = payload.splitlines()
 
     for line in payload_content:
-        # if 'Content-Type: text/html' in line:
         if '<!DOCTYPE html>' in line:
-        # if 'Content-Type: text/html' in line:
             skip = False
             break
-    #     # if '<!DOCTYPE html>' in line:
-    #     if 'text/html' in line:
-    #         skip = False
-    #         continue
         else:
             skip = True
 
     if skip is False:
-        # for line in payload.splitlines():
         for line in payload_content:
             soup = BeautifulSoup(line, features='html5lib')
             text = soup.body.get_text(strip=True).strip()
             text = text.replace('\ufeff', '')
             # filter ascii control characters
             text = re.sub(r'[\x00-\x1F]+', '', text)
-            # print(text.strip())
-            # exit(1)
             if text:
                 try:
                     languages = lang_det.predict(text)
@@ -115,7 +97,6 @@ def collect_entities(text):
     :return: a list of named entities detected
     """
     entities = []
-    # print(text)
     doc = nlp(text)
     # looping through the sentences in the text
     for sent in doc.sents:
@@ -125,11 +106,9 @@ def collect_entities(text):
             if not any(re.match(exception, cleaned_mention) for exception in EXCEPTIONS)\
                     and not any(punct in cleaned_mention[1:-1] for punct in PUNCTUATION)\
                     and ent.label_ in TARGET_LABELS:
-                # if not any(punct in cleaned_mention[1:-1] for punct in PUNCTUATION):
                     # filter out ascii control characters
                 cleaned_mention = re.sub(r'[\x00-\x1F]+', '', cleaned_mention)
                 if cleaned_mention:
-                    #print(cleaned_mention)
                     tuple_to_add = (cleaned_mention, ent.label_, sent.text)
                     entities.append(tuple_to_add)
 
@@ -194,7 +173,6 @@ def process_archive(archive_path, lang_det):
                         continue
                     if entities:
                         output_dict[key] = entities
-                    # output_dict[key]['text'] = text
                         counter += 1
                         if counter % 10 == 0:
                             print(counter)
@@ -206,12 +184,7 @@ def process_archive(archive_path, lang_det):
 
 def start_processing_warcs(lang_det):
 
-    # all_paths = glob.glob('data/warcs/**.gz')
-    # processes = len(all_paths)
-    #
-    # with get_context('spawn').Pool(processes) as p:
-    #     p.map(process_archive, all_paths)
-
+    # TODO: we should allow to provide filepath here
     process_archive('data/sample.warc.gz', lang_det)
 
     with open("warc_file_names.txt", mode='wt', encoding='utf-8') as f:
@@ -224,5 +197,4 @@ if __name__ == '__main__':
     lang_det = fasttext.load_model('lid.176.ftz')
     fasttext.FastText.eprint = lambda x: None
 
-    # start_processing_warcs(lang_det)
     process_archive('data/sample.warc.gz', lang_det)

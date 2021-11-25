@@ -1,20 +1,18 @@
-from functools import partial
 from collections import defaultdict
 import fasttext
-
 from src.extraction import start_processing_warcs
 from src.entity_generation_ES import entity_generation
-# from src.context_vectors_2 import get_similarity_scores
 import argparse
 import pickle
 import sys
 import time
 from itertools import islice
 from multiprocessing import Pool
-from elasticsearch import Elasticsearch
+
 
 def str2bool(v):
-  return str(v).lower() in ("yes", "true", "t", "1")
+    return str(v).lower() in ("yes", "true", "t", "1")
+
 
 def parse_cmd_arguments():
 
@@ -58,23 +56,24 @@ def read_all_warcs(list_of_warcs):
     return list_of_texts
 
 
-def split_entity_dict(entity_dict, slices=3):
+def split_mention_dict(mention_dict, slices):
     """
+    Takes a dictionary containing mentions extracted
+    from WARC records and splits into a number of slices.
 
-    :param entity_dict:
-    :param slices:
-    :return:
+    :param mention_dict: a dictionary containing mentions extracted from WARC records
+    :param slices: a predetermined number of slices the mention_dict will be split into
+    :return: a list containing the sliced mention dictionaries
     """
-    sliced_entity_dicts = []
-    slice_size = int(len(entity_dict)/slices)
+    sliced_mention_dicts = []
+    slice_size = int(len(mention_dict) / slices)
     prev_idx = 0
-    # for i in range(0, len(entity_dict), slice_size):
-    for i in range(0, len(entity_dict), slice_size):
-        print(i)
-        sliced_dict = {k: entity_dict[k] for k in islice(entity_dict, prev_idx, prev_idx+slice_size)}
-        sliced_entity_dicts.append([sliced_dict])
+
+    for i in range(0, len(mention_dict), slice_size):
+        sliced_dict = {k: mention_dict[k] for k in islice(mention_dict, prev_idx, prev_idx + slice_size)}
+        sliced_mention_dicts.append([sliced_dict])
         prev_idx += slice_size
-    return sliced_entity_dicts
+    return sliced_mention_dicts
 
 
 def read_all_es_results(list_of_names):
@@ -89,9 +88,11 @@ def read_all_es_results(list_of_names):
 
 def merge_pooled_processes(pooled_processes):
     """
+    Merges the outcome of pooled processes resulting from
+    carrying out multiprocessing to query the Elasticsearch.
 
-    :param pooled_processes:
-    :return:
+    :param pooled_processes: a list containing the output of pooled processes
+    :return: a dictionary containing all candidate entities extracted by the processes
     """
     unique_uris = set()
     merged_processes = defaultdict(list)
@@ -112,34 +113,21 @@ def generate_and_save_entities(warcs, slice_no, slices):
     start = time.time()
     idx = 0
 
-    # print(warcs)
-
     for warc in warcs:
-        # print(warc)
-        # print(type(warc))
-        # exit(1)
         for key, entities in warc.items():
             for mention, label, context in entities:
                 if mention not in dict_of_candidates.keys():
                     list_of_uris = entity_generation(mention, context, slice_no, slices)
                     dict_of_candidates[mention] = list_of_uris
-                    print(f"{slice_no}\tEntity search completed for: ", mention)
+                    print("Entity search completed for: ", mention)
                     print("Best Result:", list_of_uris if not list_of_uris else list_of_uris[0])
-                    # exit(1)
-                    # if idx > 200:
-                    if idx > 10:
+                    if idx > 200:
                         print(time.time()-start)
-                        # exit(1)
                         break
-                # break
-            # break
                     else:
                         idx +=1
                     break
                 break
-
-    with open('outputs/candidate_dictionary.pkl', 'wb') as f:
-        pickle.dump(dict_of_candidates,f)
 
     return dict_of_candidates
 
@@ -159,81 +147,17 @@ if __name__ == '__main__':
 
     warc_texts = read_all_warcs(list_of_warcnames)
 
-    # print(type(warc_texts[0]))
-    # print(len(warc_texts[0]))
-
-    subdicts = split_entity_dict(warc_texts[0], slices)
+    subdicts = split_mention_dict(warc_texts[0], slices)
     slice_list = [slices]*slices
-    # print(len(subdicts))
-    # exit(1)
-
-    # print(len(subdicts[0][0]))
-    # for i, j in subdicts[0][0].items():
-    #     print(i, j)
-    #     break
-
-    # exit(1)
-    # subdicts = split_entity_dict(warc_texts[0], slices)
-
-    # subdicts = [
-    #     [{'1a': [('Washington', 'ORG', 'This is Washington.')]},
-    #      {'1b': [('Adams', 'ORG', 'Oh my god, I want an Adams.')]}],
-    #     [{'2a': [('Adams', 'PER', 'This is an Adams.')]},
-    #      {'2b': [('Hamilton', 'PER', 'Alexander Hamilton.')]},
-    #      {'2c': [('Hamilton', 'PER', 'Alexander Hamilton.')]},
-    #      {'2d': [('Washington', 'ORG', 'This is Washington.')]}],
-    #     [{'3a': [('Budapest', 'LOC', 'Budapest is a great city.')]},
-    #      {'3b': [('Washington', 'EVENT', 'Washington Day is the greatest day on Earth.'),
-    #              ('Adams', 'ORG', 'Oh my god, I want an Adams.')]}]
-    # ]
 
     if es_bool:
-        # e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
-        # e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
-        # candidate_dict = generate_and_save_entities(warc_texts, e)
-        # candidate_dict = generate_and_save_entities(subdicts[0])
-
         pool = Pool(slices)
-        # use_elasticsearch = partial(generate_and_save_entities)
-        # candidate_dict = use_elasticsearch(subdicts)
-        # pool = Pool(1)
-        # pool.map(use_elasticsearch, warc_texts)
         pooled_processes = pool.starmap(generate_and_save_entities, zip(subdicts, range(slices), slice_list))
 
         merged_processes = merge_pooled_processes(pooled_processes)
-        print(merged_processes)
-        print()
-        for key, value in merged_processes.items():
-            print(key, value)
-            break
-        print()
-        print(type(merged_processes))
-        # print()
-        # for entity in entities:
-        #     print(entity)
-        # pool.map(generate_and_save_entities, subdicts)
-        # exit(1)
-        # with open('outputs/test_dict.pkl', 'wb') as f:
-        #     pickle.dump(entities, f)
-        # exit(1)
+
+        with open('outputs/candidate_dictionary.pkl', 'wb') as f:
+            pickle.dump(merged_processes, f)
     else:
         with open("outputs/candidate_dictionary.pkl", "rb") as f:
             candidate_dict = pickle.load(f)
-
-
-    #run_context_vector_script(warc_texts, list_of_candidates_per_warc)
-
-
-
-
-
-    # with open(PKL_file, "rb") as infile:
-    #     texts = pickle.load(infile)
-    #
-    # for key, entities in texts.items():
-    #     for idx, entity_tuple in enumerate(entities):
-    #         mention, label, context = entity_tuple
-    #         list_of_uris = entity_generation("Washington",
-    #                                          "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
-    #         exit(1)
-
