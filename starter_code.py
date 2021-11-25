@@ -1,5 +1,5 @@
 from functools import partial
-
+from collections import defaultdict
 import fasttext
 
 from src.extraction import start_processing_warcs
@@ -86,6 +86,26 @@ def read_all_es_results(list_of_names):
 
     return list_of_candidates
 
+
+def merge_pooled_processes(pooled_processes):
+    """
+
+    :param pooled_processes:
+    :return:
+    """
+    unique_uris = set()
+    merged_processes = defaultdict(list)
+
+    for pooled_process in pooled_processes:
+        for target_entity, returned_queries in pooled_process.items():
+            for returned_query in returned_queries:
+                uri = returned_query['uri']
+                if uri not in unique_uris:
+                    unique_uris.add(uri)
+                    merged_processes[target_entity].append(returned_query)
+    return merged_processes
+
+
 def generate_and_save_entities(warcs, slice_no, slices):
     dict_of_candidates = {}
 
@@ -112,11 +132,11 @@ def generate_and_save_entities(warcs, slice_no, slices):
                     else:
                         idx +=1
 
-
     with open('outputs/candidate_dictionary.pkl', 'wb') as f:
         pickle.dump(dict_of_candidates,f)
 
     return dict_of_candidates
+
 
 if __name__ == '__main__':
 
@@ -172,15 +192,18 @@ if __name__ == '__main__':
         # candidate_dict = use_elasticsearch(subdicts)
         # pool = Pool(1)
         # pool.map(use_elasticsearch, warc_texts)
-        entities = pool.starmap(generate_and_save_entities, zip(subdicts, range(slices), slice_list))
-        print()
-        for entity in entities:
-            print(entity)
+        pooled_processes = pool.starmap(generate_and_save_entities, zip(subdicts, range(slices), slice_list))
+
+        merged_processes = merge_pooled_processes(pooled_processes)
+        print(merged_processes)
+        # print()
+        # for entity in entities:
+        #     print(entity)
         # pool.map(generate_and_save_entities, subdicts)
         # exit(1)
-        with open('outputs/test_dict.pkl', 'wb') as f:
-            pickle.dump(entities, f)
-        exit(1)
+        # with open('outputs/test_dict.pkl', 'wb') as f:
+        #     pickle.dump(entities, f)
+        # exit(1)
     else:
         with open("outputs/candidate_dictionary.pkl", "rb") as f:
             candidate_dict = pickle.load(f)

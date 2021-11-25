@@ -107,8 +107,8 @@ def search(query, slice_no, slices, size):
     #         id_labels.append(uri_dict)
     # return id_labels
 
-# e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
-e = Elasticsearch(timeout=30)
+e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
+# e = Elasticsearch(timeout=30)
 # use_elasticsearch = partial(search, e=e)
 # if __name__ == '__main__':
     # pool = Pool(SLICES)
