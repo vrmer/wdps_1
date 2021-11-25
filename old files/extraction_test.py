@@ -215,4 +215,4 @@ if __name__ == '__main__':
     # with get_context('spawn').Pool(processes) as p:
     #     p.map(process_archive, all_paths)
 
-    process_archive('data/sample.warc.gz')
+    process_archive('../data/sample.warc.gz')

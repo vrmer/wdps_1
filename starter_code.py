@@ -1,10 +1,21 @@
 from src.extraction import start_processing_warcs
 from src.entity_generation_ES import entity_generation
+from src.entity_generation_ES import order_list_from_list
 from src.candidate_selection import candidate_selection
 import argparse
 import pickle
 import sys
 import time
+
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+
+stop_words = set(stopwords.words("english"))
+stop_words.add("-")
+lemmatizer = WordNetLemmatizer()
+punctuation = ['!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`', '(', ')',
+               '"', '=', '>', ';', '@', '\'', '*', '+', '?', '_', '...', ',', '--', ':']
 
 def str2bool(v):
   return str(v).lower() in ("yes", "true", "t", "1")
@@ -14,8 +25,8 @@ def parse_cmd_arguments():
     cmd_parser =argparse.ArgumentParser(description='Parser for Entity Linking Program')
 
     cmd_parser.add_argument('-s', '--save_es_results', type=str,
-                        help='Required argument, write 1 if you want to process and save the candidates '
-                             'of the entity generation, 0 otherwise')
+                        help="Required argument, write 'True' if you want to process and save the candidates "
+                             "of the entity generation, 'False' otherwise")
 
     cmd_parser.add_argument('-p', '--process_warcs', type=str, required= False,
                         help="Optional argument, write 'True' if you want to process the warc file(s), False otherwise")
@@ -24,7 +35,7 @@ def parse_cmd_arguments():
                                    help="Required if -p == False, create a txt with the names of all the WARC picle files, "
                                         "seperated by a '\\n' that need to be imported in the program")
 
-    cmd_parser.add_argument('-model', '--model_for_ranking', choices=['popularity','lesk','glove','bert'], required=True,
+    cmd_parser.add_argument('-mod', '--model_for_ranking', choices=['popularity','lesk','glove','bert'], required=True,
                             help="Required argument, write which model to use for candidate ranking. Possible options:"
                             "popularity | lesk | glove | bert")
 
@@ -66,9 +77,7 @@ def read_all_es_results(list_of_names):
 
 def generate_and_save_entities(warcs):
     dict_of_candidates = {}
-
-    start = time.time()
-    idx = 0
+    entities_checked = 0
 
     for warc in warcs:
         for key, entities in warc.items():
@@ -76,14 +85,10 @@ def generate_and_save_entities(warcs):
                 if mention not in dict_of_candidates.keys():
                     list_of_uris = entity_generation(mention, context)
                     dict_of_candidates[mention] = list_of_uris
-                    print("Entity search completed for: ", mention)
-                    print("Best Result:", list_of_uris if not list_of_uris else list_of_uris[0])
+                    entities_checked +=1
 
-                    if idx > 200:
-                        print(time.time()-start)
-                        exit(1)
-                    else:
-                        idx +=1
+                    if entities_checked % 200 ==0:
+                        print("Entities checked: ", entities_checked)
 
 
     with open('outputs/candidate_dictionary.pkl', 'wb') as f:
@@ -91,7 +96,7 @@ def generate_and_save_entities(warcs):
 
     return dict_of_candidates
 
-def disambiguate_entities (warc_texts, candidate_dict,method='popularity'):
+def disambiguate_entities( warc_texts, candidate_dict,method='popularity' ):
 
     start = time.perf_counter()
 
@@ -104,9 +109,47 @@ def disambiguate_entities (warc_texts, candidate_dict,method='popularity'):
 
     return output
 
+def extract_nouns_schemas(list_of_schemas):
+    is_noun = lambda pos:pos[:2] == "NN"
+    return [ [word for (word,pos) in nltk.pos_tag(nltk.word_tokenize(schema)) \
+            if word.strip() not in stop_words and word.strip() not in punctuation and not word.strip().isdigit() and is_noun ] \
+            for schema in list_of_schemas]
+
+def find_best_match(clean_context, list_of_schemas, list_of_dicts):
+    list_of_counts = []
+
+    for schema in list_of_schemas:
+        similarity_count = sum( [1 if lemmatizer.lemmatize(word) in clean_context else 0 for word in schema])
+        list_of_counts.append(similarity_count)
+
+    return order_list_from_list(list_of_dicts, list_of_counts, True)[0]
+
+
+def run_lesk_algorithm(warcs, candidates, warc_names):
+
+    for idx,warc in enumerate(warcs):
+        list_of_results = []
+        for key, entities in warc.items():
+            for mention, label, context in entities:
+                candidate_list = candidates[mention]
+                if not candidate_list:
+                    list_of_results.append( (key, mention, None) )
+
+                schema_list = [x["description"] for x in candidate_list]
+                clean_schema_list = extract_nouns_schemas(schema_list)
+                clean_context = extract_nouns_schemas([context])
+                best_uri = find_best_match(clean_context, clean_schema_list, candidate_list)
+                list_of_results.append( (key, mention, best_uri) )
+
+        with open('results/annotations_' + warc_names[idx], 'wb') as f:
+            pickle.dump(list_of_results, f)
+
+        break
+
+
 if __name__ == '__main__':
 
-    warc_bool, es_bool, fw, model_for_selection = parse_cmd_arguments()
+    warc_bool, es_bool, fw, model = parse_cmd_arguments()
 
     if warc_bool:
         list_of_warcnames = start_processing_warcs()
@@ -122,20 +165,13 @@ if __name__ == '__main__':
         with open("outputs/candidate_dictionary.pkl", "rb") as f:
             candidate_dict = pickle.load(f)
 
-    output = disambiguate_entities(warc_texts, candidate_dict, model_for_selection)
-    with open("outputs/output.txt", 'w') as outfile:
-        for entity_tuple in output:
-            outfile.write(f'{entity_tuple[0]} {entity_tuple[1]}{chr(10)}')  # chr 10 = new line
+    if model == "lesk":
+        run_lesk_algorithm(warc_texts, candidate_dict, list_of_warcnames)
 
-    # testing score.py
-
-    # with open(PKL_file, "rb") as infile:
-    #     texts = pickle.load(infile)
+    # output = disambiguate_entities(warc_texts, candidate_dict, model_for_selection)
     #
-    # for key, entities in texts.items():
-    #     for idx, entity_tuple in enumerate(entities):
-    #         mention, label, context = entity_tuple
-    #         list_of_uris = entity_generation("Washington",
-    #                                          "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
-    #         exit(1)
+    # with open("outputs/output.txt", 'w') as outfile:
+    #     for entity_tuple in output:
+    #         outfile.write(f'{entity_tuple[0]} {entity_tuple[1]}{chr(10)}')  # chr 10 = new line
+
 

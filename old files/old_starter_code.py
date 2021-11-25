@@ -44,7 +44,7 @@ def find_labels(payload):
     # For now, we are cheating. We are going to returthe labels that we stored in sample-labels-cheat.txt
     # Instead of doing that, you should process the text to identify the entities. Your implementation should return
     # the discovered disambiguated entities with the same format so that I can check the performance of your program.
-    cheats = dict((line.split('\t', 2) for line in open('data/sample-labels-cheat.txt').read().splitlines()))
+    cheats = dict((line.split('\t', 2) for line in open('../data/sample-labels-cheat.txt').read().splitlines()))
     for label, wikidata_id in cheats.items():
         if key and (label in payload):
             yield key, label, wikidata_id

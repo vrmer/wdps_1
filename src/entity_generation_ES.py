@@ -14,7 +14,7 @@ stop_words = set(stopwords.words("english"))
 stop_words.add("-")
 lemmatizer = WordNetLemmatizer()
 punctuation = ['!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`', '(', ')',
-               '"', '=', '>', ';', '@', '\'', '*', '+']
+               '"', '=', '>', ';', '@', '\'', '*', '+', '?', '_', '...', ',', '--', ':']
 
 def search(query,size):
     """
@@ -24,7 +24,7 @@ def search(query,size):
     :param size: determines the number of URIs returned from Elastic Search
     :return: a list of URI's from the search process
     """
-    e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
+    e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout = 30)
     #e = Elasticsearch('http://localhost:9200')
     #e = Elasticsearch(timeout=30)
     p = { "query" : { "query_string" : { "query" : query } }, "size":size}
@@ -160,7 +160,7 @@ def entity_generation(check_entity, context):
                 best_synsets, best_definition = perform_similarity_algorithm(context, synsets)
 
             synonyms = [lemma.name().replace("_", " ") for x in best_synsets for lemma in x.lemmas()]
-            synonyms = list( set( synonyms + best_definition ) )[:6]
+            synonyms = list( set( synonyms + best_definition ) )[:8]
 
         list_of_uris = []
 
@@ -174,7 +174,7 @@ def entity_generation(check_entity, context):
                 list_of_uris += search(synonym, search_size)
 
     else:
-        print("No Synsets detected,querying normally")
+        #print("No Synsets detected,querying normally")
         list_of_uris = search(check_entity,20)
 
     #Find all unique dictionaries in the list and filter the URI
