@@ -24,7 +24,7 @@ TARGET_LABELS = {'GPE', 'LOC',
                  'ORG', 'PERSON', 'PRODUCT', 'WORK_OF_ART',
                  'LAW', 'FAC'}  # removed EVENT and NORP and LANGUAGE
 
-EXCEPTIONS = {'WARC-Type', 'GMTCache-Control', 'User-AgentConnection', 'GTMContent-Type', 'ul li' '9px',"WARC-Targ", "h3"}
+EXCEPTIONS = {'WARC-Type', 'GMTCache-Control', 'User-AgentConnection', 'GTMContent-Type', 'ul li' '9px',"WARC-TARG", "h3"}
 re_compile = lambda x: re.compile(f'^{x}.*$')
 
 EXCEPTIONS = {re_compile(x) for x in EXCEPTIONS}
@@ -36,7 +36,7 @@ PUNCTUATION = {'!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`',
 STR_PUNCTUATION = ''.join([punct for punct in PUNCTUATION])
 # print(STR_PUNCTUATION)
 
-list_of_filenames = []
+counter_entities = 0
 
 
 def split_records(stream):
@@ -113,6 +113,8 @@ def collect_entities(text):
     :param text: a string of text
     :return: a list of named entities detected
     """
+    global counter_entities
+
     entities = []
     # print(text)
     doc = nlp(text)
@@ -132,6 +134,7 @@ def collect_entities(text):
                     tuple_to_add = (cleaned_mention, ent.label_, sent.text)
                     entities.append(tuple_to_add)
 
+    counter_entities += len(entities)
     return entities
 
 
@@ -177,8 +180,8 @@ def process_archive(archive_path):
     :param archive_path: a filepath to the WARC archive
     :return: None, it writes out the entities in the outputs folder
     """
+    global counter_entities
     basename = os.path.basename(archive_path).rstrip('.warc.gz')
-    list_of_filenames.append(basename + "_entities.pkl")
     counter = 0
     output_dict = dict()
     with gzip.open(archive_path, 'rt', errors='ignore', encoding='utf8') as stream:
@@ -198,11 +201,13 @@ def process_archive(archive_path):
                         if counter % 10 == 0:
                             print(counter)
 
+    print("Total number of entities: ", counter_entities)
+
     with open(f'outputs/{basename}_entities.pkl', 'wb') as outfile:
         pickle.dump(output_dict, outfile)
 
 
-def start_processing_warcs():
+if __name__ == '__main__':
 
     # all_paths = glob.glob('data/warcs/**.gz')
     # processes = len(all_paths)
@@ -211,8 +216,3 @@ def start_processing_warcs():
     #     p.map(process_archive, all_paths)
 
     process_archive('data/sample.warc.gz')
-
-    with open("warc_file_names.txt", mode='wt', encoding='utf-8') as f:
-        f.write('\n'.join(list_of_filenames))
-
-    return list_of_filenames

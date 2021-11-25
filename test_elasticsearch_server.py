@@ -3,7 +3,8 @@ import json
 from elasticsearch import Elasticsearch
 
 def search(query):
-    e = Elasticsearch('http://fs0.das5.cs.vu.nl:10010/')
+    # e = Elasticsearch('http://fs0.das5.cs.vu.nl:10010/')
+    e = Elasticsearch()
     p = { "query" : { "query_string" : { "query" : query }}}
     response = e.search(index="wikidata_en", body=json.dumps(p))
     id_labels = {}

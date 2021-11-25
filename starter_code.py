@@ -1,74 +1,124 @@
-import gzip
+from src.extraction import start_processing_warcs
+from src.entity_generation_ES import entity_generation
+from src.context_vectors_2 import get_similarity_scores
+import argparse
+import pickle
+import sys
+import time
+
+def str2bool(v):
+  return str(v).lower() in ("yes", "true", "t", "1")
+
+def parse_cmd_arguments():
+
+    cmd_parser =argparse.ArgumentParser(description='Parser for Entity Linking Program')
+
+    cmd_parser.add_argument('-s', '--save_es_results', type=str,
+                        help='Required argument, write 1 if you want to process and save the candidates '
+                             'of the entity generation, 0 otherwise')
+
+    cmd_parser.add_argument('-p', '--process_warcs', type=str, required= False,
+                        help="Optional argument, write 'True' if you want to process the warc file(s), False otherwise")
+
+    cmd_parser.add_argument('-fp', '--filename_warcs', required='-p' in sys.argv,
+                                   help="Required if -p == False, create a txt with the names of all the WARC picle files, "
+                                        "seperated by a '\\n' that need to be imported in the program")
 
 
-KEYNAME = "WARC-TREC-ID"
+    parsed = cmd_parser.parse_args()
+    if parsed.process_warcs is None:
+        warc_bool = True
+    else:
+        warc_bool = str2bool(parsed.process_warcs)
 
-# The goal of this function process the webpage and returns a list of labels -> entity ID
-def find_labels(payload):
-    if payload == '':
-        return
+    es_bool = str2bool(parsed.save_es_results)
 
-    # The variable payload contains the source code of a webpage and some additional meta-data.
-    # We firt retrieve the ID of the webpage, which is indicated in a line that starts with KEYNAME.
-    # The ID is contained in the variable 'key'
-    key = None
-    for line in payload.splitlines():
-        if line.startswith(KEYNAME):
-            key = line.split(': ')[1]
-            break
+    if not warc_bool:
+        filename_warcs = parsed.filename_warcs
+    else:
+        filename_warcs = None
 
-    # Problem 1: The webpage is typically encoded in HTML format.
-    # We should get rid of the HTML tags and retrieve the text. How can we do it?
-
-    # Problem 2: Let's assume that we found a way to retrieve the text from a webpage. How can we recognize the
-    # entities in the text?
-
-    # Problem 3: We now have to disambiguate the entities in the text. For instance, let's assugme that we identified
-    # the entity "Michael Jordan". Which entity in Wikidata is the one that is referred to in the text?
-
-    # To tackle this problem, you have access to two tools that can be useful. The first is a SPARQL engine (Trident)
-    # with a local copy of Wikidata. The file "test_sparql.py" shows how you can execute SPARQL queries to retrieve
-    # valuable knowledge. Please be aware that a SPARQL engine is not the best tool in case you want to lookup for
-    # some strings. For this task, you can use elasticsearch, which is also installed in the docker image.
-    # The file start_elasticsearch_server.sh will start the elasticsearch server while the file
-    # test_elasticsearch_server.py shows how you can query the engine.
-
-    # A simple implementation would be to first query elasticsearch to retrieve all the entities with a label
-    # that is similar to the text found in the web page. Then, you can access the SPARQL engine to retrieve valuable
-    # knowledge that can help you to disambiguate the entity. For instance, if you know that the webpage refers to persons
-    # then you can query the knowledge base to filter out all the entities that are not persons...
-
-    # Obviously, more sophisticated implementations that the one suggested above are more than welcome :-)
+    return warc_bool, es_bool, filename_warcs
 
 
-    # For now, we are cheating. We are going to returthe labels that we stored in sample-labels-cheat.txt
-    # Instead of doing that, you should process the text to identify the entities. Your implementation should return
-    # the discovered disambiguated entities with the same format so that I can check the performance of your program.
-    cheats = dict((line.split('\t', 2) for line in open('data/sample-labels-cheat.txt').read().splitlines()))
-    for label, wikidata_id in cheats.items():
-        if key and (label in payload):
-            yield key, label, wikidata_id
+def read_all_warcs(list_of_warcs):
+    list_of_texts = []
+    for warc in list_of_warcs:
+        with open("outputs/" + warc, "rb") as infile:
+            texts = pickle.load(infile)
+            list_of_texts.append(texts)
+
+    return list_of_texts
 
 
-def split_records(stream):
-    payload = ''
-    for line in stream:
-        if line.strip() == "WARC/1.0":
-            yield payload
-            payload = ''
-        else:
-            payload += line
-    yield payload
+def read_all_es_results(list_of_names):
+    list_of_candidates = []
+    for file in list_of_names:
+        with open("outputs/" + file, "rb") as infile:
+            candidates = pickle.load(infile)
+            list_of_candidates.append(candidates)
+
+    return list_of_candidates
+
+def generate_and_save_entities(warcs):
+    dict_of_candidates = {}
+
+    start = time.time()
+    idx = 0
+
+    for warc in warcs:
+        for key, entities in warc.items():
+            for mention, label, context in entities:
+                if mention not in dict_of_candidates.keys():
+                    list_of_uris = entity_generation(mention, context)
+                    dict_of_candidates[mention] = list_of_uris
+                    print("Entity search completed for: ", mention)
+                    print("Best Result:", list_of_uris if not list_of_uris else list_of_uris[0])
+
+                    if idx > 200:
+                        print(time.time()-start)
+                        exit(1)
+                    else:
+                        idx +=1
+
+
+    with open('outputs/candidate_dictionary.pkl', 'wb') as f:
+        pickle.dump(dict_of_candidates,f)
+
+    return dict_of_candidates
 
 if __name__ == '__main__':
-    import sys
-    try:
-        _, INPUT = sys.argv
-    except Exception as e:
-        print('Usage: python starter-code.py INPUT')
-        sys.exit(0)
 
-    with gzip.open(INPUT, 'rt', errors='ignore') as fo:
-        for record in split_records(fo):
-            for key, label, wikidata_id in find_labels(record):
-                print(key + '\t' + label + '\t' + wikidata_id)
+    warc_bool, es_bool, fw = parse_cmd_arguments()
+
+    if warc_bool:
+        list_of_warcnames = start_processing_warcs()
+    else:
+        with open(fw) as f:
+            list_of_warcnames = list(f.readlines())
+
+    warc_texts = read_all_warcs(list_of_warcnames)
+
+    if es_bool:
+        candidate_dict = generate_and_save_entities(warc_texts)
+    else:
+        with open("outputs/candidate_dictionary.pkl", "rb") as f:
+            candidate_dict = pickle.load(f)
+
+
+    #run_context_vector_script(warc_texts, list_of_candidates_per_warc)
+
+
+
+
+
+    # with open(PKL_file, "rb") as infile:
+    #     texts = pickle.load(infile)
+    #
+    # for key, entities in texts.items():
+    #     for idx, entity_tuple in enumerate(entities):
+    #         mention, label, context = entity_tuple
+    #         list_of_uris = entity_generation("Washington",
+    #                                          "George Washington (February 22, 1732 – December 14, 1799) was an American military officer, statesman, and Founding Father who served as the first president of the United States from 1789 to 1797")
+    #         exit(1)
+
