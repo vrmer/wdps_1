@@ -153,9 +153,12 @@ if __name__ == '__main__':
         [{'1a': [('Washington', 'ORG', 'This is Washington.')]},
          {'1b': [('Adams', 'ORG', 'Oh my god, I want an Adams.')]}],
         [{'2a': [('Adams', 'PER', 'This is an Adams.')]},
-         {'2b': [('Hamilton', 'PER', 'Alexander Hamilton.')]}],
-        [{'3': [('Budapest', 'LOC', 'Budapest is a great city.'),
-                ('Washington', 'EVENT', 'Washington Day is the greatest day on Earth.')]}]
+         {'2b': [('Hamilton', 'PER', 'Alexander Hamilton.')]},
+         {'2c': [('Hamilton', 'PER', 'Alexander Hamilton.')]},
+         {'2d': [('Washington', 'ORG', 'This is Washington.')]}],
+        [{'3a': [('Budapest', 'LOC', 'Budapest is a great city.')]},
+         {'3b': [('Washington', 'EVENT', 'Washington Day is the greatest day on Earth.'),
+                 ('Adams', 'ORG', 'Oh my god, I want an Adams.')]}]
     ]
 
     if es_bool:
