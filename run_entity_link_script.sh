@@ -9,4 +9,4 @@ python3 ./import_nltk_sets.py
 echo "Running script on default values"
 echo "Therefore, all the warc files will be read and saved and all ElasticSearch results will be generated and saved within the 'outputs' folder"
 echo "If this script is ran once without error, manually call the command, set both -p and -s parameters to 'False' and provide the corresponding txt documents"
-python3 ./starter_code.py -p True -s True
+python3 ./starter_code.py -p True -s True -fp "warc_file_names.txt"
