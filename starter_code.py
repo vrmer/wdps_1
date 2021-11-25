@@ -128,8 +128,8 @@ if __name__ == '__main__':
     # print(len(warc_texts[0]))
 
     subdicts = split_entity_dict(warc_texts[0], slices)
-    print(len(subdicts))
-    exit(1)
+    # print(len(subdicts))
+    # exit(1)
 
     # print(len(subdicts[0][0]))
     # for i, j in subdicts[0][0].items():
@@ -139,23 +139,23 @@ if __name__ == '__main__':
     # exit(1)
     # subdicts = split_entity_dict(warc_texts[0], slices)
 
-    # subdicts = [
-    #     [{'1': ('Washington', 'ORG', 'This is Washington.')}],
-    #     [{'2': ('Adams', 'PER', 'This is an Adams.')}],
-    #     [{'3': ('Budapest', 'LOC', 'Budapest is a great city.')}]
-    # ]
+    subdicts = [
+        {'1': [('Washington', 'ORG', 'This is Washington.')]},
+        {'2': [('Adams', 'PER', 'This is an Adams.')]},
+        {'3': [('Budapest', 'LOC', 'Budapest is a great city.')]}
+    ]
 
     if es_bool:
         e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
         # candidate_dict = generate_and_save_entities(warc_texts, e)
         # candidate_dict = generate_and_save_entities(subdicts[0])
 
-        # pool = Pool(slices)
+        pool = Pool(slices)
         use_elasticsearch = partial(generate_and_save_entities, e=e)
-        candidate_dict = use_elasticsearch(subdicts[3])
+        # candidate_dict = use_elasticsearch(subdicts)
         # pool = Pool(1)
         # pool.map(use_elasticsearch, warc_texts)
-        # pool.map(use_elasticsearch, subdicts)
+        pool.map(use_elasticsearch, subdicts)
         # exit(1)
     else:
         with open("outputs/candidate_dictionary.pkl", "rb") as f:

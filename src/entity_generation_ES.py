@@ -1,4 +1,6 @@
 import pickle
+from functools import partial
+
 from elasticsearch import Elasticsearch
 from elasticsearch_dsl import Search
 import json
@@ -10,8 +12,8 @@ from copy import deepcopy
 import string
 from multiprocessing import Pool
 
-SLICES = 5
-QUERIES = ["George Washington", "John Adams", "Thomas Jefferson", "Alexander Hamilton", "Aaron Burr"]
+SLICES = 2
+QUERIES = ["George Washington", "John Adams"]#, #"Thomas Jefferson", "Alexander Hamilton", "Aaron Burr"]
 
 KBPATH='assets/wikidata-20200203-truthy-uri-tridentdb'
 
@@ -32,20 +34,23 @@ def dump_slice(slice_no, query):
     #     "query_string": {"query": query}
     # })
     s = s.extra(slice={"id": slice_no, "max": SLICES})
-    for d in s.scan():
+    for idx, d in enumerate(s.scan()):
+        if idx == 8:
+            break
+        else:
         # print(d.meta.id)
-        print(f'{slice_no}\t{query}\t{d.schema_name}')
-        break
+            print(f'{slice_no}\t{query}\t{d.rdfs_label}')
+        # break
 
 
-if __name__ == '__main__':
-    pool = Pool(SLICES)
-    pool.starmap(dump_slice, zip(range(SLICES), QUERIES))
+# if __name__ == '__main__':
+#     pool = Pool(SLICES)
+#     pool.starmap(dump_slice, zip(range(SLICES), QUERIES))
+#
+#     exit(1)
 
-    exit(1)
 
-
-def search(query,size, e):
+def search(query, slice_no):
     """
     Performs Elastic search
 
@@ -56,22 +61,41 @@ def search(query,size, e):
     # e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
     #e = Elasticsearch('http://localhost:9200')
     #e = Elasticsearch(timeout=30)
-    p = { "query" : { "query_string" : { "query" : query } }, "size":size}
-    response = e.search(index="wikidata_en", body=json.dumps(p))
-    id_labels = []
-    if response:
-        for hit in response['hits']['hits']:
-            id = hit['_id']
+    # p = { "query" : { "query_string" : { "query" : query } }, "size":size}
+    p = { "query" : { "query_string" : { "query" : query } }}
+    s = Search.from_dict(p).using(client)
+    s = s.extra(slice={"id": slice_no, "max": SLICES})
+    # s = s.extra(slice={"id": slice})
 
-            if "rdfs_label" not in hit['_source']:
-                continue
+    for idx, stuff in enumerate(s.scan()):
+        print(stuff.meta["id"])
+        print(stuff.rdfs_label)
+        if idx == 10:
+            break
 
-            rdfs_label = hit['_source']['rdfs_label']
-            name = hit["_source"]["schema_name"] if "schema_name" in hit["_source"] else ""
-            description = hit['_source']['schema_description'] if "schema_description" in hit['_source'] else ""
-            uri_dict = {"uri": id, "rdfs": rdfs_label, "name": name, "description": description}
-            id_labels.append(uri_dict)
-    return id_labels
+    # response = e.search(index="wikidata_en", body=json.dumps(p))
+    # id_labels = []
+    # if response:
+    #     for hit in response['hits']['hits']:
+    #         id = hit['_id']
+    #
+    #         if "rdfs_label" not in hit['_source']:
+    #             continue
+    #
+    #         rdfs_label = hit['_source']['rdfs_label']
+    #         name = hit["_source"]["schema_name"] if "schema_name" in hit["_source"] else ""
+    #         description = hit['_source']['schema_description'] if "schema_description" in hit['_source'] else ""
+    #         uri_dict = {"uri": id, "rdfs": rdfs_label, "name": name, "description": description}
+    #         id_labels.append(uri_dict)
+    # return id_labels
+
+e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
+# use_elasticsearch = partial(search, e=e)
+if __name__ == '__main__':
+    pool = Pool(SLICES)
+    pool.starmap(search, zip(QUERIES, range(SLICES)))
+# search('George Washington', 10, e)
+# exit(1)
 
 
 def perform_similarity_algorithm(text, synsets):
