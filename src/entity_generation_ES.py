@@ -25,7 +25,6 @@ punctuation = ['!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`',
 
 
 client = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
-# client = Elasticsearch(timeout=30)
 
 
 def dump_slice(slice_no, query):
@@ -51,7 +50,7 @@ def dump_slice(slice_no, query):
 #     exit(1)
 
 
-def search(query, slice_no, slices, size):
+def search(query, slice_no):
     """
     Performs Elastic search
 
@@ -65,31 +64,14 @@ def search(query, slice_no, slices, size):
     # p = { "query" : { "query_string" : { "query" : query } }, "size":size}
     p = { "query" : { "query_string" : { "query" : query } }}
     s = Search.from_dict(p).using(client)
-    s = s.extra(slice={"id": slice_no, "max": slices})
+    s = s.extra(slice={"id": slice_no, "max": SLICES})
     # s = s.extra(slice={"id": slice})
 
-    id_labels =[]
-
     for idx, stuff in enumerate(s.scan()):
-        hit = stuff.to_dict()
-        # print(hit)
-
-        if "rdfs_label" not in hit:
-            continue
-        else:
-            rdfs_label = hit["rdfs_label"]
-
-        id = stuff.meta["id"]
-        name = hit["schema_name"] if "schema_name" in hit else ''
-        description = hit["schema_description"] if "schema_description" in hit else ''
-        uri_dict = {"uri": id, "rdfs": rdfs_label, "name": name, "description": description}
-        id_labels.append(uri_dict)
-        #print(f'{slice_no}\t{stuff.meta["id"]}')
-        # print(stuff.rdfs_label)
-        if idx == size:
+        print(stuff.meta["id"])
+        print(stuff.rdfs_label)
+        if idx == 10:
             break
-
-    return id_labels
 
     # response = e.search(index="wikidata_en", body=json.dumps(p))
     # id_labels = []
@@ -109,9 +91,9 @@ def search(query, slice_no, slices, size):
 
 e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
 # use_elasticsearch = partial(search, e=e)
-# if __name__ == '__main__':
-    # pool = Pool(SLICES)
-    # pool.starmap(search, zip(QUERIES, range(SLICES)))
+if __name__ == '__main__':
+    pool = Pool(SLICES)
+    pool.starmap(search, zip(QUERIES, range(SLICES)))
 # search('George Washington', 10, e)
 # exit(1)
 
@@ -207,7 +189,7 @@ def filter_uris(list_of_uris, entity):
 
     return [x for idx,x in enumerate(list_of_uris) if idx not in to_delete]
 
-def entity_generation(check_entity, context, slice_no, slices):
+def entity_generation(check_entity, context, e):
     """
     Performs the entity generation for all entities and corresponding texts
 
@@ -226,29 +208,29 @@ def entity_generation(check_entity, context, slice_no, slices):
             if not context:
                 best_synsets = synsets[:3]
                 best_definition = list( set( get_nouns_from_definition(synsets)[0] ) )
+                search_size = 8
             else:
                 best_synsets, best_definition = perform_similarity_algorithm(context, synsets)
 
             synonyms = [lemma.name().replace("_", " ") for x in best_synsets for lemma in x.lemmas()]
-            synonyms = list( set( synonyms + best_definition ) )[:8]
+            synonyms = list( set( synonyms + best_definition ) )[:6]
 
         list_of_uris = []
 
         for synonym in synonyms:
-            list_es = search("(%s) AND (%s)" % (check_entity, synonym), slice_no, slices,search_size)
+            list_es = search("(%s) AND (%s)" % (check_entity, synonym), search_size, e)
             list_of_uris += list_es
 
             if not list_es:
                 continue
             else:
-                list_of_uris += search(synonym, slice_no, slices,search_size)
+                list_of_uris += search(synonym, search_size, e)
 
     else:
         print("No Synsets detected,querying normally")
-        list_of_uris = search(check_entity,slice_no, slices, 20)
+        list_of_uris = search(check_entity,20, e)
 
     #Find all unique dictionaries in the list and filter the URI
-    #TODO: this to merge dicts
     list_of_uris = [dict(t) for t in {tuple(d.items()) for d in list_of_uris}]
     list_of_uris = filter_uris(list_of_uris, check_entity)
 

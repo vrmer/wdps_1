@@ -2,6 +2,9 @@
 
 This repository contains the solution of group 3 for the Entity Linking Assignment from the course Web Processing Data Systems 2021 at VU Amsterdam. Our solution recognizes named entity mentions in Web pages and link them to Wikidata. In the following sections, the installation instructions and coding choices will be further elaborated. 
 
+### Processing WARC files
+
+The processing of the WARC files takes place in a parallel manner. The aim is to collect all records that contain text that is in English and that has recognizable entities in them ('mentions'). This means CSS and Javascript content has to be filtered out, as well as websites in languages aside from English. As output, we create one dictionary for each WARC archive. The dictionary keys are the WARC ids, and the value is a list of tuples in the <mention_name, mention_label, mention_context> format.
 
 ## Installation
 
@@ -33,9 +36,13 @@ For candidate generation specifically:
 
 In this section, we explain how we approach the challenges of candidate generation and disambiguation and motivate our choices.
 
-### Importing and reading WARC files
+As a first step, the WARC archives are unzipped, and they are split into individual records (websites). Since entity mentions can only be found in the HTML part of websites, we only process the record if it contains the <!DOCTYPE html> tag. If it does, we use BeautifulSoup to get all text from the body of the website. We use the html2text library for further cleaning of the text, namely the removal of HTML tags. If some text is found in the website body, we use fasttext to carry out language prediction, only keeping it if the text is English.
 
-TODO
+The next step is to use the spaCy library for sentence splitting and mention extraction. spaCy produces some state-of-the-art results in named entity recognition, which is why we chose it. For each sentence (which we assume to be the mention context), spaCy identifies potential entities with a label. We chose to retain only a subset of entities after carefully considering the outputs. The list of entity labels we retain is the following:
+
+EVENT, GPE, LOC, NORP, ORG, PERSON, PRODUCT, WORK_OF_ART, LAW, LANGUAGE, FAC
+
+Furthermore, we filter out mentions that are identified by spaCy but contain characters real-life entities do not normally contain. These include especially semicolons, equal signs, and brackets, that from observing the outputs we conclude often come from Javascript snippets that we fail to filter out. The remaining mentions are then added to 
 
 ### Recognizing Mentions of Named Entities in Text through Spacy
 

@@ -8,7 +8,6 @@ import sys
 import time
 from itertools import islice
 from multiprocessing import Pool
-import fasttext
 from elasticsearch import Elasticsearch
 
 def str2bool(v):
@@ -84,26 +83,21 @@ def read_all_es_results(list_of_names):
 
     return list_of_candidates
 
-def generate_and_save_entities(warcs, slice_no, slices):
+def generate_and_save_entities(warcs, e):
     dict_of_candidates = {}
 
     start = time.time()
     idx = 0
 
-    # print(warcs)
-
     for warc in warcs:
-        # print(warc)
-        # print(type(warc))
-        # exit(1)
         for key, entities in warc.items():
             for mention, label, context in entities:
                 if mention not in dict_of_candidates.keys():
-                    list_of_uris = entity_generation(mention, context, slice_no, slices)
+                    list_of_uris = entity_generation(mention, context, e)
                     dict_of_candidates[mention] = list_of_uris
                     print("Entity search completed for: ", mention)
                     print("Best Result:", list_of_uris if not list_of_uris else list_of_uris[0])
-                    exit(1)
+
                     if idx > 200:
                         print(time.time()-start)
                         exit(1)
@@ -118,15 +112,12 @@ def generate_and_save_entities(warcs, slice_no, slices):
 
 if __name__ == '__main__':
 
-    lang_det = fasttext.load_model('lid.176.ftz')
-    fasttext.FastText.eprint = lambda x: None
-
     slices = 3
 
     warc_bool, es_bool, fw = parse_cmd_arguments()
 
     if warc_bool:
-        list_of_warcnames = start_processing_warcs(lang_det)
+        list_of_warcnames = start_processing_warcs()
     else:
         with open(fw) as f:
             list_of_warcnames = list(f.readlines())
@@ -137,7 +128,6 @@ if __name__ == '__main__':
     # print(len(warc_texts[0]))
 
     subdicts = split_entity_dict(warc_texts[0], slices)
-    slice_list = [slices]*slices
     # print(len(subdicts))
     # exit(1)
 
@@ -149,26 +139,24 @@ if __name__ == '__main__':
     # exit(1)
     # subdicts = split_entity_dict(warc_texts[0], slices)
 
-    # subdicts = [
-    #     [{'1': [('Washington', 'ORG', 'This is Washington.')]}],
-    #     [{'2': [('Adams', 'PER', 'This is an Adams.')]}],
-    #     [{'3': [('Budapest', 'LOC', 'Budapest is a great city.')]}]
-    # ]
+    subdicts = [
+        {'1': [('Washington', 'ORG', 'This is Washington.')]},
+        {'2': [('Adams', 'PER', 'This is an Adams.')]},
+        {'3': [('Budapest', 'LOC', 'Budapest is a great city.')]}
+    ]
 
     if es_bool:
-        # e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
-        # e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
+        e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
         # candidate_dict = generate_and_save_entities(warc_texts, e)
         # candidate_dict = generate_and_save_entities(subdicts[0])
 
         pool = Pool(slices)
-        # use_elasticsearch = partial(generate_and_save_entities)
+        use_elasticsearch = partial(generate_and_save_entities, e=e)
         # candidate_dict = use_elasticsearch(subdicts)
         # pool = Pool(1)
         # pool.map(use_elasticsearch, warc_texts)
-        pool.starmap(generate_and_save_entities, zip(subdicts, range(slices), slice_list))
-        # pool.map(generate_and_save_entities, subdicts)
-        exit(1)
+        pool.map(use_elasticsearch, subdicts)
+        # exit(1)
     else:
         with open("outputs/candidate_dictionary.pkl", "rb") as f:
             candidate_dict = pickle.load(f)
