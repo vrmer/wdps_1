@@ -8,6 +8,7 @@ import sys
 import time
 from itertools import islice
 from multiprocessing import Pool
+import fasttext
 from elasticsearch import Elasticsearch
 
 def str2bool(v):
@@ -117,12 +118,15 @@ def generate_and_save_entities(warcs, slice_no, slices):
 
 if __name__ == '__main__':
 
+    lang_det = fasttext.load_model('lid.176.ftz')
+    fasttext.FastText.eprint = lambda x: None
+
     slices = 3
 
     warc_bool, es_bool, fw = parse_cmd_arguments()
 
     if warc_bool:
-        list_of_warcnames = start_processing_warcs()
+        list_of_warcnames = start_processing_warcs(lang_det)
     else:
         with open(fw) as f:
             list_of_warcnames = list(f.readlines())
@@ -133,7 +137,7 @@ if __name__ == '__main__':
     # print(len(warc_texts[0]))
 
     subdicts = split_entity_dict(warc_texts[0], slices)
-    slice_list = [3, 3, 3]
+    slice_list = [slices]*slices
     # print(len(subdicts))
     # exit(1)
 

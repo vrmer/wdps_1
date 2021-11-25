@@ -24,8 +24,8 @@ punctuation = ['!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`',
                '"', '=', '>', ';', '@', '\'', '*', '+']
 
 
-# client = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
-client = Elasticsearch(timeout=30)
+client = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
+# client = Elasticsearch(timeout=30)
 
 
 def dump_slice(slice_no, query):

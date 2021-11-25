@@ -14,8 +14,8 @@ from multiprocessing import get_context
 nlp = spacy.load('en_core_web_md')
 
 # loading the language detection model
-lang_det = fasttext.load_model('lid.176.ftz')
-fasttext.FastText.eprint = lambda x: None
+# lang_det = fasttext.load_model('lid.176.ftz')
+# fasttext.FastText.eprint = lambda x: None
 
 # define some constants regarding where the WARC record IDs can be found
 # as well as which NER labels we are filtering for
@@ -25,7 +25,7 @@ TARGET_LABELS = {'GPE', 'LOC',
                  'LAW', 'FAC'}  # removed EVENT and NORP and LANGUAGE
 
 EXCEPTIONS = {'WARC-Type', 'GMTCache-Control', 'User-AgentConnection', 'GTMContent-Type', 'ul li' '9px',"WARC-Targ", "h3"}
-re_compile = lambda x: re.compile(f'^{x}.*$')
+re_compile = lambda x: re.compile(f'(^)?{x}.*$')
 
 EXCEPTIONS = {re_compile(x) for x in EXCEPTIONS}
 # print(EXCEPTIONS)
@@ -56,12 +56,13 @@ def split_records(stream):
     yield payload
 
 
-def filter_for_english_text(payload):
+def filter_for_english_text(payload, lang_det):
     """
     Finds content that contains a <!DOCTYPE html> tag
     and contains English text.
 
     :param payload: an instance of a WARC record
+    :param lang_det:
     :return: a string of text or None if nothing of that kind is found
     """
     out_text = ''
@@ -152,7 +153,7 @@ def extract_key(payload):
     return key
 
 
-def process_payload(payload):
+def process_payload(payload, lang_det):
     """
     Attempts to find a string of English text
     in a WARC record, and if it finds one,
@@ -162,13 +163,13 @@ def process_payload(payload):
     :return: a tuple of a record key and text
     """
     key = None
-    text = filter_for_english_text(payload)
+    text = filter_for_english_text(payload, lang_det)
     if text:
         key = extract_key(payload)
     return key, text
 
 
-def process_archive(archive_path):
+def process_archive(archive_path, lang_det):
     """
     Given a path to a WARC archive, it processes its records
     by attempting to extract a string of English text and
@@ -185,7 +186,7 @@ def process_archive(archive_path):
         payloads = split_records(stream)
         for payload in payloads:
             if payload.strip():
-                key, text = process_payload(payload)
+                key, text = process_payload(payload, lang_det)
                 if key and text:
                     try:
                         entities = collect_entities(text)
@@ -202,7 +203,7 @@ def process_archive(archive_path):
         pickle.dump(output_dict, outfile)
 
 
-def start_processing_warcs():
+def start_processing_warcs(lang_det):
 
     # all_paths = glob.glob('data/warcs/**.gz')
     # processes = len(all_paths)
@@ -210,9 +211,16 @@ def start_processing_warcs():
     # with get_context('spawn').Pool(processes) as p:
     #     p.map(process_archive, all_paths)
 
-    process_archive('data/sample.warc.gz')
+    process_archive('data/sample.warc.gz', lang_det)
 
     with open("warc_file_names.txt", mode='wt', encoding='utf-8') as f:
         f.write('\n'.join(list_of_filenames))
 
     return list_of_filenames
+
+
+if __name__ == '__main__':
+    lang_det = fasttext.load_model('lid.176.ftz')
+    fasttext.FastText.eprint = lambda x: None
+
+    start_processing_warcs(lang_det)
