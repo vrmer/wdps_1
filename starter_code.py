@@ -4,6 +4,7 @@ from src.context_vectors_2 import get_similarity_scores
 import argparse
 import pickle
 import sys
+import time
 
 def str2bool(v):
   return str(v).lower() in ("yes", "true", "t", "1")
@@ -23,8 +24,13 @@ def parse_cmd_arguments():
                                    help="Required if -p == False, create a txt with the names of all the WARC picle files, "
                                         "seperated by a '\\n' that need to be imported in the program")
 
+
     parsed = cmd_parser.parse_args()
-    warc_bool = str2bool(parsed.process_warcs)
+    if parsed.process_warcs is None:
+        warc_bool = True
+    else:
+        warc_bool = str2bool(parsed.process_warcs)
+
     es_bool = str2bool(parsed.save_es_results)
 
     if not warc_bool:
@@ -57,17 +63,24 @@ def read_all_es_results(list_of_names):
 def generate_and_save_entities(warcs):
     dict_of_candidates = {}
 
+    start = time.time()
+    idx = 0
+
     for warc in warcs:
         for key, entities in warc.items():
-            for entity_tuple in entities:
-                mention, label, context = entity_tuple
+            for mention, label, context in entities:
                 if mention not in dict_of_candidates.keys():
                     list_of_uris = entity_generation(mention, context)
                     dict_of_candidates[mention] = list_of_uris
                     print("Entity search completed for: ", mention)
-                    print("Search Results:")
-                    print(list_of_uris)
-                    exit(1)
+                    print("Best Result:", list_of_uris if not list_of_uris else list_of_uris[0])
+
+                    if idx > 200:
+                        print(time.time()-start)
+                        exit(1)
+                    else:
+                        idx +=1
+
 
     with open('outputs/candidate_dictionary.pkl', 'wb') as f:
         pickle.dump(dict_of_candidates,f)

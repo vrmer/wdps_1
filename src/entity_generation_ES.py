@@ -33,13 +33,14 @@ def search(query,size):
     if response:
         for hit in response['hits']['hits']:
             id = hit['_id']
-            label = hit['_source']['schema_name']
-            if "schema_description" in hit['_source']:
-                description = hit['_source']['schema_description']
-            else:
-                description = ""
+
+            if "rdfs_label" not in hit['_source']:
+                continue
+
             rdfs_label = hit['_source']['rdfs_label']
-            uri_dict = {"uri": id, "rdfs": rdfs_label, "name": label, "description": description}
+            name = hit["_source"]["schema_name"] if "schema_name" in hit["_source"] else ""
+            description = hit['_source']['schema_description'] if "schema_description" in hit['_source'] else ""
+            uri_dict = {"uri": id, "rdfs": rdfs_label, "name": name, "description": description}
             id_labels.append(uri_dict)
     return id_labels
 
@@ -159,7 +160,7 @@ def entity_generation(check_entity, context):
                 best_synsets, best_definition = perform_similarity_algorithm(context, synsets)
 
             synonyms = [lemma.name().replace("_", " ") for x in best_synsets for lemma in x.lemmas()]
-            synonyms = list( set( synonyms + best_definition ) )[:13]
+            synonyms = list( set( synonyms + best_definition ) )[:6]
 
         list_of_uris = []
 
