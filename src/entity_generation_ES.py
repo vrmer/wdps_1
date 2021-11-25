@@ -24,8 +24,8 @@ punctuation = ['!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`',
                '"', '=', '>', ';', '@', '\'', '*', '+']
 
 
-client = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
-# client = Elasticsearch(timeout=30)
+# client = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
+client = Elasticsearch(timeout=30)
 
 
 def dump_slice(slice_no, query):
@@ -107,7 +107,8 @@ def search(query, slice_no, slices, size):
     #         id_labels.append(uri_dict)
     # return id_labels
 
-e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
+# e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
+e = Elasticsearch(timeout=30)
 # use_elasticsearch = partial(search, e=e)
 # if __name__ == '__main__':
     # pool = Pool(SLICES)
@@ -248,7 +249,6 @@ def entity_generation(check_entity, context, slice_no, slices):
         list_of_uris = search(check_entity,slice_no, slices, 20)
 
     #Find all unique dictionaries in the list and filter the URI
-    #TODO: this to merge dicts
     list_of_uris = [dict(t) for t in {tuple(d.items()) for d in list_of_uris}]
     list_of_uris = filter_uris(list_of_uris, check_entity)
 
