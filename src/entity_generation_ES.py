@@ -11,6 +11,7 @@ import string
 from multiprocessing import Pool
 
 SLICES = 5
+QUERIES = ["George Washington", "John Adams", "Thomas Jefferson", "Alexander Hamilton", "Aaron Burr"]
 
 KBPATH='assets/wikidata-20200203-truthy-uri-tridentdb'
 
@@ -23,20 +24,28 @@ punctuation = ['!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`',
 
 client = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
 
-def dump_slice(slice_no):
-    s = Search(using=client)
+
+def dump_slice(slice_no, query):
+    p = {"query": {"query_string": {"query": query}}}
+    s = Search.from_dict(p).using(client)
+    # s = Search(using=client).query({
+    #     "query_string": {"query": query}
+    # })
     s = s.extra(slice={"id": slice_no, "max": SLICES})
     for d in s.scan():
-        print(d.meta.id)
+        # print(d.meta.id)
+        print(f'{slice_no}\t{query}\t{d.schema_name}')
+        break
+
 
 if __name__ == '__main__':
     pool = Pool(SLICES)
-    pool.map(dump_slice, range(SLICES))
+    pool.starmap(dump_slice, zip(range(SLICES), QUERIES))
 
     exit(1)
 
 
-def search(query,size):
+def search(query,size, e):
     """
     Performs Elastic search
 
@@ -44,23 +53,10 @@ def search(query,size):
     :param size: determines the number of URIs returned from Elastic Search
     :return: a list of URI's from the search process
     """
-    e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
+    # e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
     #e = Elasticsearch('http://localhost:9200')
     #e = Elasticsearch(timeout=30)
-    e = e.extra(slices={"id": 0, "max": 2}).scan()
     p = { "query" : { "query_string" : { "query" : query } }, "size":size}
-    # p = {
-    #     "slice": {
-    #         "id": 0,
-    #         "max": 2
-    #     },
-    #     "query": {
-    #         "query_string": {
-    #             "query": query
-    #         }
-    #     },
-    #     "size": size
-    # }
     response = e.search(index="wikidata_en", body=json.dumps(p))
     id_labels = []
     if response:
@@ -169,7 +165,7 @@ def filter_uris(list_of_uris, entity):
 
     return [x for idx,x in enumerate(list_of_uris) if idx not in to_delete]
 
-def entity_generation(check_entity, context):
+def entity_generation(check_entity, context, e):
     """
     Performs the entity generation for all entities and corresponding texts
 
@@ -198,17 +194,17 @@ def entity_generation(check_entity, context):
         list_of_uris = []
 
         for synonym in synonyms:
-            list_es = search("(%s) AND (%s)" % (check_entity, synonym), search_size)
+            list_es = search("(%s) AND (%s)" % (check_entity, synonym), search_size, e)
             list_of_uris += list_es
 
             if not list_es:
                 continue
             else:
-                list_of_uris += search(synonym, search_size)
+                list_of_uris += search(synonym, search_size, e)
 
     else:
         print("No Synsets detected,querying normally")
-        list_of_uris = search(check_entity,20)
+        list_of_uris = search(check_entity,20, e)
 
     #Find all unique dictionaries in the list and filter the URI
     list_of_uris = [dict(t) for t in {tuple(d.items()) for d in list_of_uris}]
