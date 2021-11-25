@@ -1,10 +1,10 @@
-# README Group 3 Assignment 1
+# Entity Linking Assignment 1 Group 3
 
-This repository contains the solution of group 3 for the Entity Linking Assignment from the course Web Processing Data Systems 2021 at VU Amsterdam. Our solution recognizes named entity mentions in Web pages and link them to Wikidata. In the following sections, the installation instructions and coding choices will be further elaborated. Note that this was elaborately tested on Windows specifically, since neither group member owns a Macbook or has a separate linux installation. Therefore, it was impossible to check whether it properly runs on other Operating Systems.  
+This repository contains the solution of Group 3 for the Entity Linking Assignment from the course Web Processing Data Systems 2021 at VU Amsterdam. Our solution recognizes named entity mentions in Web pages and link them to Wikidata. In the following sections, the installation instructions and coding choices will be further elaborated. Note that this was elaborately tested on Windows specifically, since neither group member owns a Macbook or has a separate linux installation. Therefore, it was not possible to check whether it properly runs on other Operating Systems.  
 
 ## Structure directory
 
-To understand how the directory is structured, a small summary will be provided here. The _assets_ folder contains all the wikidata information and the optional local elasticsearch mechanisms, which have not been altered. The _data_ directory contains all the warc files, including the sample warc file. This has not been altered either. The _old files_ directory contains all the old files, such as the _starter_code_, _test_sparql_, etc. of the original directory, which are currently not in use by our program. The _outputs_ directory provides all the pickle files that have been saved. These files include the processed WARC files and the ElasticSearch candidates for each entity in the processed WARC files. The _src_ directory contains all of the major code snippets used at some point throughout the project. The files in the main directory includes files that are used by the starter_code.py file, which executes the main program. 
+To understand how the directory is structured, a small summary will be provided here. The _assets_ folder contains all the wikidata information and the optional local elasticsearch mechanisms, which have not been altered. The _data_ directory contains all the warc files, including the sample warc file. This has not been altered either. The _old files_ directory contains all the original files, such as the _starter_code_, _test_sparql_, etc. of the original directory, which are currently not in use by our program. The _outputs_ directory provides all the pickle files that have been saved. These files include the processed WARC files and the ElasticSearch candidates for each entity in the processed WARC files. The _src_ directory contains all of the major code snippets used at some point throughout the project. The files in the main directory includes files that are used by the starter_code.py file, which executes the main program. 
 
 ## Installation packages and data
 
@@ -45,4 +45,26 @@ However, another problem is that there may not be enough synonyms to choose betw
 
 ### Model tests and choices
 
-Given contextualized embeddings are currently the most sophisticated representations for textual input, we decided to experiment with using contextualized embeddings to represent both the entity mention to be disambiguate and its respective candidate entities. (...)
+#### Unsupervised Methods
+
+Given a recognized mention and its respective candidate entities, a candidate entity needs to be selected to disambiguate the mention. This selection is done using unsupervised methods, since we are dealing with a large amount of unannotated data on which a supervised model is unlikely to generalize well. In particular, we opted to experiment with a **Vector Space Model (VSM)** approach, given its execution simplicity. The idea is that both mention and candidate entities are represented with vectors in a shared space. Then, we calculate the **similarity** between the mention vector and each candidate vector and select the candidate entity with the highest similarity score. 
+
+#### Creating Vectors
+
+To generate such vectors, we experimented with encoding the mention and candidate entities with a language model. To represent the mention, the **mention span** and the **sentence** which it was in were taken. To represent the entity, the **entity name** and its **description** were taken. The entity name and description were obtained from the fields "schema_name" (or "rdsf_label" in case there was no "schema_name") and "schema_description" on ElasticSearch. An embedding representation was generated of the tokens of each of these elements (mention span, mention sentential context, entity name, and entity description), and averaged over each token embedding to get a fixed-length vector representation of each of the elements. To represent the mention, the resulting averaged vector of the mention span and the resulting averaged vector of its sentence were concatenated.  To represent the entity, the same was done with the averaged vectors of the entity name and description.
+
+#### Context-dependent Features
+
+We experimented with two language models to generate such embeddings. The first was BERT. BERT is a state-of-the-art Transformer-based language model that generates contextualized embeddings. This means that each embedding it generates given a string contains information on the left and right textual context of that string. However, contextualized embeddings can be very expensive to compute if dealing with large amounts of data, which is the case here. For that reason, we switched to a ligher version of BERT, named **DistilBERT**, which is around 40% faster while attaining 95% of the accuracy. Even with this ligher version, it took about 30 minutes to encode only the mentions of one of the warc files (with an 8GB RAM). Because of the expensiveness to calculate contextualized embeddings, we also experimented with static embeddings, namely **GloVe**. Static embeddings are also representations of words in a dense embedded space, but, once trained, they do not adjust to unseen input. We used GloVe with 100 dimensional vectors pre-trained on Wikipedia (2014) and Gigaword 5. They turned out to be quite expensive to compute, taking about 18 minutes to encode the mentions of one of the warc files.
+
+#### WordNet Popularity
+
+Given these scalability issues, we decided to implement simpler but less computationally expensive approaches to candidate selection.  The first is based on WordNet popularity. Since we use WordNet in our candidate generation module, the candidate entities are ordered according to its frequency on the corpus WordNet uses. Therefore, by simply selecting the first key, we obtain the best candidate entity according to WordNet popularity. However, for those mentions not present in WordNet, the candidates are ordered according to the relevance scores given by ElasticSearch, which do not only take popularity into account.
+
+#### Simplified Lesk Algorithm
+
+Another less expensive approach we implement is a method based on the Simplified Lesk Algorithm. It simply counts how many tokens in the sentential context of the mention are also in the entity description. The entity candidate whose description has the highest overlap with the mention context is the selected candidate. More specifications of this method was already mentioned in the section Generating Candidates through ElasticSearch. 
+
+### Results
+
+### References
