@@ -126,8 +126,6 @@ def generate_and_save_entities(warcs, slice_no, slices):
                         break
                     else:
                         idx +=1
-                    break
-                break
 
     return dict_of_candidates
 
