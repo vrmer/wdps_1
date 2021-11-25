@@ -24,7 +24,7 @@ TARGET_LABELS = {'GPE', 'LOC',
                  'ORG', 'PERSON', 'PRODUCT', 'WORK_OF_ART',
                  'LAW', 'FAC'}  # removed EVENT and NORP and LANGUAGE
 
-EXCEPTIONS = {'WARC-Type', 'GMTCache-Control', 'User-AgentConnection', 'GTMContent-Type', 'ul li' '9px',"WARC-Targ", "h3"}
+EXCEPTIONS = {'WARC-Type', 'GMTCache-Control', 'User-AgentConnection', 'GTMContent-Type', 'ul li' '9px',"WARC-Targ", "h3", "WARC-Target"}
 re_compile = lambda x: re.compile(f'(^)?{x}.*$')
 
 EXCEPTIONS = {re_compile(x) for x in EXCEPTIONS}
@@ -199,6 +199,7 @@ def process_archive(archive_path, lang_det):
                         if counter % 10 == 0:
                             print(counter)
 
+    print(len(output_dict))
     with open(f'outputs/{basename}_entities.pkl', 'wb') as outfile:
         pickle.dump(output_dict, outfile)
 
@@ -223,4 +224,5 @@ if __name__ == '__main__':
     lang_det = fasttext.load_model('lid.176.ftz')
     fasttext.FastText.eprint = lambda x: None
 
-    start_processing_warcs(lang_det)
+    # start_processing_warcs(lang_det)
+    process_archive('data/sample.warc.gz', lang_det)
