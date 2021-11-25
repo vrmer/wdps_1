@@ -2,10 +2,12 @@ from src.extraction import start_processing_warcs
 from src.entity_generation_ES import entity_generation
 from src.entity_generation_ES import order_list_from_list
 from src.candidate_selection import candidate_selection
+from src.score import get_performance
 import argparse
 import pickle
 import sys
 import time
+import os
 
 import nltk
 from nltk.corpus import stopwords
@@ -173,7 +175,12 @@ if __name__ == '__main__':
         for idx, warc in enumerate(warc_texts):
             output = disambiguate_entities(warc, candidate_dict, model)
 
-            with open(f"results/annotations_' + {list_of_warcnames[idx]}", 'w') as outfile:
+            with open(f"results/annotations_' + {list_of_warcnames[idx][:-4]}", 'w') as outfile:
                 for entity_tuple in output:
-                    outfile.write(f'{entity_tuple[0]} {entity_tuple[1]} {entity_tuple[2]}{chr(10)}')  # chr 10 = new line
+                    outfile.write(entity_tuple[0] + '\t' + entity_tuple[1] + '\t' + entity_tuple[2] + '\n')
 
+    d = 'results'
+    sample_file = 'annotations_sample_entities'
+    files = os.listdir('results')
+    if sample_file in files:
+        get_performance('data/sample_annotations.tsv',os.path.join(d, sample_file))
