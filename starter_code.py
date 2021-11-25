@@ -175,5 +175,5 @@ if __name__ == '__main__':
 
             with open(f"results/annotations_' + {list_of_warcnames[idx]}", 'w') as outfile:
                 for entity_tuple in output:
-                    outfile.write(f'{entity_tuple[0]} {entity_tuple[1]}{chr(10)}')  # chr 10 = new line
+                    outfile.write(f'{entity_tuple[0]} {entity_tuple[1]} {entity_tuple[2]}{chr(10)}')  # chr 10 = new line
 

@@ -259,6 +259,6 @@ def candidate_selection(warc_texts, candidate_dict, method):
             # generate best entity candidate
             best_candidate = get_best_candidate(mention, context, candidates, method, model, tokenizer)
             # append to output list
-            output.append((mention, best_candidate))
+            output.append((text_id, mention, best_candidate))
 
     return output
