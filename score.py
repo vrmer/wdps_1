@@ -1,5 +1,9 @@
 import sys
 
+def load_result(gold_file,pred_file):
+
+    pass
+
 gold_file = sys.argv[1]
 pred_file = sys.argv[2]
 

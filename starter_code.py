@@ -35,7 +35,7 @@ def parse_cmd_arguments():
                                    help="Required if -p == False, create a txt with the names of all the WARC picle files, "
                                         "seperated by a '\\n' that need to be imported in the program")
 
-    cmd_parser.add_argument('-mod', '--model_for_ranking', choices=['popularity','lesk','glove','bert'], required=True,
+    cmd_parser.add_argument('-m', '--model_for_ranking', choices=['popularity','lesk','glove','bert'], required=True,
                             help="Required argument, write which model to use for candidate ranking. Possible options:"
                             "popularity | lesk | glove | bert")
 
@@ -168,10 +168,12 @@ if __name__ == '__main__':
     if model == "lesk":
         run_lesk_algorithm(warc_texts, candidate_dict, list_of_warcnames)
 
-    # output = disambiguate_entities(warc_texts, candidate_dict, model_for_selection)
-    #
-    # with open("outputs/output.txt", 'w') as outfile:
-    #     for entity_tuple in output:
-    #         outfile.write(f'{entity_tuple[0]} {entity_tuple[1]}{chr(10)}')  # chr 10 = new line
+    else:
+        pass
+        for idx, warc in enumerate(warc_texts):
+            output = disambiguate_entities(warc, candidate_dict, model)
 
+            with open(f"results/annotations_' + {list_of_warcnames[idx]}", 'w') as outfile:
+                for entity_tuple in output:
+                    outfile.write(f'{entity_tuple[0]} {entity_tuple[1]}{chr(10)}')  # chr 10 = new line
 
