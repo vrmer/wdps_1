@@ -2,7 +2,6 @@ from src.extraction import start_processing_warcs
 from src.entity_generation_ES import entity_generation
 from src.entity_generation_ES import order_list_from_list
 from src.candidate_selection import candidate_selection
-from src.score import get_performance
 import argparse
 import pickle
 import sys
@@ -34,7 +33,7 @@ def parse_cmd_arguments():
                         help="Optional argument, write 'True' if you want to process the warc file(s), False otherwise")
 
     cmd_parser.add_argument('-fp', '--filename_warcs', required='-p' in sys.argv,
-                                   help="Required if -p == False, create a txt with the names of all the WARC picle files, "
+                                   help="Required if -p == False, create a txt with the names of all the WARC pickle files, "
                                         "seperated by a '\\n' that need to be imported in the program")
 
     cmd_parser.add_argument('-m', '--model_for_ranking', choices=['popularity','lesk','glove','bert'], required=True,
@@ -171,10 +170,8 @@ if __name__ == '__main__':
         run_lesk_algorithm(warc_texts, candidate_dict, list_of_warcnames)
 
     else:
-        pass
         for idx, warc in enumerate(warc_texts):
             output = disambiguate_entities(warc, candidate_dict, model)
-
             with open(f"results/annotations_' + {list_of_warcnames[idx][:-4]}", 'w') as outfile:
                 for entity_tuple in output:
                     outfile.write(entity_tuple[0] + '\t' + entity_tuple[1] + '\t' + entity_tuple[2] + '\n')

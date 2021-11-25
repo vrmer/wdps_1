@@ -156,11 +156,12 @@ def get_best_candidate(mention, context, candidates, method, model, tokenizer):
     :return: the wikidata uri of candidate entity with highest similarity score to the mention
     """
 
-    best_candidate = ''
+    best_candidate = 'NIL'
 
     if method == 'popularity':
        # candidates in dict are ordered by popularity, thus the first candidate is the best according to popularity
-       best_candidate = candidates[0]['uri']
+        if candidates != []:
+           best_candidate = candidates[0]['uri']
 
     elif method == 'lesk':
         pass
@@ -171,18 +172,19 @@ def get_best_candidate(mention, context, candidates, method, model, tokenizer):
 
         max_similarity = 0
 
-        for candidate_dict in candidates:
-            if 'name' in candidate_dict.keys():
-                name = candidate_dict['name']
-            else:
-                name = candidate_dict['rdfs']
-            description = candidate_dict['description']
-            candidate_vector = get_bert_representation(name, description, model, tokenizer)
+        if candidates != []:
+            for candidate_dict in candidates:
+                if 'name' in candidate_dict.keys():
+                    name = candidate_dict['name']
+                else:
+                    name = candidate_dict['rdfs']
+                description = candidate_dict['description']
+                candidate_vector = get_bert_representation(name, description, model, tokenizer)
 
-            similarity = 1 - distance.cosine(mention_vector, candidate_vector)
-            if similarity > max_similarity:
-               max_similarity = similarity
-               best_candidate = candidate_dict['uri']
+                similarity = 1 - distance.cosine(mention_vector, candidate_vector)
+                if similarity > max_similarity:
+                    max_similarity = similarity
+                    best_candidate = candidate_dict['uri']
 
     elif method == 'glove':
 
@@ -190,18 +192,19 @@ def get_best_candidate(mention, context, candidates, method, model, tokenizer):
 
         max_similarity = 0
 
-        for candidate_dict in candidates:
-            if 'name' in candidate_dict.keys():
-                name = candidate_dict['name']
-            else:
-                name = candidate_dict['rdfs']
-            description = candidate_dict['description']
-            candidate_vector = get_glove_representation(name, description, model)
+        if candidates != []:
+            for candidate_dict in candidates:
+                if 'name' in candidate_dict.keys():
+                    name = candidate_dict['name']
+                else:
+                    name = candidate_dict['rdfs']
+                description = candidate_dict['description']
+                candidate_vector = get_glove_representation(name, description, model)
 
-            similarity = 1 - distance.cosine(mention_vector, candidate_vector)
-            if similarity > max_similarity:
-                max_similarity = similarity
-                best_candidate = candidate_dict['uri']
+                similarity = 1 - distance.cosine(mention_vector, candidate_vector)
+                if similarity > max_similarity:
+                    max_similarity = similarity
+                    best_candidate = candidate_dict['uri']
 
     return best_candidate
 
@@ -253,8 +256,8 @@ def candidate_selection(warc_texts, candidate_dict, method):
             try:
                 # get the entity candidates for that mention
                 candidates = candidate_dict[mention]
-            except ValueError:
-                print(f'Mention {mention} to be disambiguated not in candidate dictionary')
+            except KeyError:
+                print(f'Mention to be disambiguated "{mention}" not in candidate dictionary')
                 exit()
             # generate best entity candidate
             best_candidate = get_best_candidate(mention, context, candidates, method, model, tokenizer)

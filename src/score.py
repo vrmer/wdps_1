@@ -11,23 +11,29 @@ def load_file(filepath):
 def get_performance (gold_file,pred_file):
 
     # Load gold annotations and predictions
-    # gold = load_file(gold_file)
-    # pred = load_file(pred_file)
+    gold = load_file(gold_file)
+    pred = load_file(pred_file)
 
-    gold = {}
-    for line in open(gold_file):
-        record, string, entity = line.strip().split('\t', 2)
-        gold[(record, string)] = entity
-
-    pred = {}
-    for line in open(pred_file):
-        string, entity = line.strip().split('\t', 2)
-        pred[('',string)] = entity
+    # gold = {}
+    # for line in open(gold_file):
+    #     record, string, entity = line.strip().split('\t', 2)
+    #     gold[(string)] = entity
+    #
+    # pred = {}
+    # for line in open(pred_file):
+    #     string, entity = line.strip().split('\t', 2)
+    #     pred[(string)] = entity
 
     n_gold = len(gold)
     n_predicted = len(pred)
     print('gold: %s' % n_gold)
     print('predicted: %s' % n_predicted)
+
+    # print(set(gold))
+    # for i in set(gold) & set(pred):
+    #     print(i)
+    #     print(pred[i])
+    #     print(gold[i])
 
     # Evaluate predictions
     n_correct = sum( int(pred[i]==gold[i]) for i in set(gold) & set(pred) )
@@ -41,4 +47,5 @@ def get_performance (gold_file,pred_file):
     f1 = 2 * ( (precision * recall) / (precision + recall) )
     print('f1: %s' % f1 )
 
-get_performance('data/sample_annotations.tsv', 'data/sample-labels-cheat.txt')
+# get_performance('data/sample_annotations.tsv', 'data/sample-labels-cheat.txt')
+get_performance('data/sample_annotations.tsv', 'data/annotations_sample_entities.tsv')
