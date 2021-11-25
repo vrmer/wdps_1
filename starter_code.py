@@ -126,11 +126,17 @@ def generate_and_save_entities(warcs, slice_no, slices):
                     print(f"{slice_no}\tEntity search completed for: ", mention)
                     print("Best Result:", list_of_uris if not list_of_uris else list_of_uris[0])
                     # exit(1)
-                    if idx > 200:
+                    # if idx > 200:
+                    if idx > 10:
                         print(time.time()-start)
-                        exit(1)
+                        # exit(1)
+                        break
+                # break
+            # break
                     else:
                         idx +=1
+                    break
+                break
 
     with open('outputs/candidate_dictionary.pkl', 'wb') as f:
         pickle.dump(dict_of_candidates,f)
@@ -169,17 +175,17 @@ if __name__ == '__main__':
     # exit(1)
     # subdicts = split_entity_dict(warc_texts[0], slices)
 
-    subdicts = [
-        [{'1a': [('Washington', 'ORG', 'This is Washington.')]},
-         {'1b': [('Adams', 'ORG', 'Oh my god, I want an Adams.')]}],
-        [{'2a': [('Adams', 'PER', 'This is an Adams.')]},
-         {'2b': [('Hamilton', 'PER', 'Alexander Hamilton.')]},
-         {'2c': [('Hamilton', 'PER', 'Alexander Hamilton.')]},
-         {'2d': [('Washington', 'ORG', 'This is Washington.')]}],
-        [{'3a': [('Budapest', 'LOC', 'Budapest is a great city.')]},
-         {'3b': [('Washington', 'EVENT', 'Washington Day is the greatest day on Earth.'),
-                 ('Adams', 'ORG', 'Oh my god, I want an Adams.')]}]
-    ]
+    # subdicts = [
+    #     [{'1a': [('Washington', 'ORG', 'This is Washington.')]},
+    #      {'1b': [('Adams', 'ORG', 'Oh my god, I want an Adams.')]}],
+    #     [{'2a': [('Adams', 'PER', 'This is an Adams.')]},
+    #      {'2b': [('Hamilton', 'PER', 'Alexander Hamilton.')]},
+    #      {'2c': [('Hamilton', 'PER', 'Alexander Hamilton.')]},
+    #      {'2d': [('Washington', 'ORG', 'This is Washington.')]}],
+    #     [{'3a': [('Budapest', 'LOC', 'Budapest is a great city.')]},
+    #      {'3b': [('Washington', 'EVENT', 'Washington Day is the greatest day on Earth.'),
+    #              ('Adams', 'ORG', 'Oh my god, I want an Adams.')]}]
+    # ]
 
     if es_bool:
         # e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout=30)
@@ -196,6 +202,12 @@ if __name__ == '__main__':
 
         merged_processes = merge_pooled_processes(pooled_processes)
         print(merged_processes)
+        print()
+        for key, value in merged_processes.items():
+            print(key, value)
+            break
+        print()
+        print(type(merged_processes))
         # print()
         # for entity in entities:
         #     print(entity)
