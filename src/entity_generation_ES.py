@@ -1,5 +1,6 @@
 import pickle
 from elasticsearch import Elasticsearch
+from elasticsearch_dsl import Search
 import json
 import nltk
 from nltk.corpus import wordnet as wn
@@ -7,6 +8,9 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from copy import deepcopy
 import string
+from multiprocessing import Pool
+
+SLICES = 5
 
 KBPATH='assets/wikidata-20200203-truthy-uri-tridentdb'
 
@@ -15,6 +19,22 @@ stop_words.add("-")
 lemmatizer = WordNetLemmatizer()
 punctuation = ['!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`', '(', ')',
                '"', '=', '>', ';', '@', '\'', '*', '+']
+
+
+client = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
+
+def dump_slice(slice_no):
+    s = Search(using=client)
+    s = s.extra(slice={"id": slice_no, "max": SLICES})
+    for d in s.scan():
+        print(d.meta.id)
+
+if __name__ == '__main__':
+    pool = Pool(SLICES)
+    pool.map(dump_slice, range(SLICES))
+
+    exit(1)
+
 
 def search(query,size):
     """
@@ -27,7 +47,20 @@ def search(query,size):
     e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
     #e = Elasticsearch('http://localhost:9200')
     #e = Elasticsearch(timeout=30)
+    e = e.extra(slices={"id": 0, "max": 2}).scan()
     p = { "query" : { "query_string" : { "query" : query } }, "size":size}
+    # p = {
+    #     "slice": {
+    #         "id": 0,
+    #         "max": 2
+    #     },
+    #     "query": {
+    #         "query_string": {
+    #             "query": query
+    #         }
+    #     },
+    #     "size": size
+    # }
     response = e.search(index="wikidata_en", body=json.dumps(p))
     id_labels = []
     if response:
