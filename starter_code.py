@@ -12,11 +12,22 @@ from multiprocessing import Pool
 from itertools import repeat
 import multiprocessing
 
-def str2bool(v):
-    return str(v).lower() in ("yes", "true", "t", "1")
+def str2bool(string):
+    '''
+    Converts the user input of any 'True' like string to boolean
+
+    :param string: string to be converted
+    :return: boolean
+    '''
+    return str(string).lower() in ("yes", "true", "t", "1")
 
 
 def parse_cmd_arguments():
+    '''
+    Parses all command line arguments. See the help messages for more information
+
+    :return: booleans and strings used later within the program
+    '''
 
     cmd_parser =argparse.ArgumentParser(description='Parser for Entity Linking Program')
 
@@ -57,6 +68,13 @@ def parse_cmd_arguments():
 
 
 def read_all_warcs(list_of_warcs):
+    '''
+    Reads all warc files, given a list of warc file names from a txt file
+
+    :param list_of_warcs: a list of warc file strings
+    :return: warc dictionaries (key=webpage-id, value = list of tuples)
+    '''
+
     list_of_texts = []
     for warc in list_of_warcs:
         with open("outputs/" + warc, "rb") as infile:
@@ -86,16 +104,6 @@ def split_mention_dict(mention_dict, slices):
     return sliced_mention_dicts
 
 
-def read_all_es_results(list_of_names):
-    list_of_candidates = []
-    for file in list_of_names:
-        with open("outputs/" + file, "rb") as infile:
-            candidates = pickle.load(infile)
-            list_of_candidates.append(candidates)
-
-    return list_of_candidates
-
-
 def merge_pooled_processes(pooled_processes):
     """
     Merges the outcome of pooled processes resulting from
@@ -119,6 +127,17 @@ def merge_pooled_processes(pooled_processes):
 
 
 def generate_and_save_entities(warcs, slice_no, slices, local_bool):
+    '''
+    Generates and saves the entities found through elasticsearch.
+    This process is parallelized for both the elasticsearch server and the current program.
+
+    :param warcs: a list of all warc dictionaries (1 dict per warc file)
+    :param slice_no: ??
+    :param slices: ??
+    :param local_bool: Indicates whether the elasticsearch should be run through a local or public client
+    :return: a dict of all candidates
+    '''
+
     dict_of_candidates = {}
     entities_checked = 0
 
@@ -183,6 +202,14 @@ def disambiguate_entities( warc_texts, candidate_dict, method='popularity' ):
 
 
 if __name__ == '__main__':
+    '''
+    Main program
+    Structure of the main:
+        - Parses commandline/terminal input
+        - Performs a parallel elastic search
+        - Write results in corresponding files
+    '''
+
 
     lang_det = fasttext.load_model('lid.176.ftz')
     slices = 5
