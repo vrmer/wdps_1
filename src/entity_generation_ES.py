@@ -1,4 +1,5 @@
 import requests
+import elasticsearch
 from elasticsearch import Elasticsearch
 from elasticsearch_dsl import Search
 import nltk
@@ -6,12 +7,13 @@ from nltk.corpus import wordnet as wn
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from copy import deepcopy
+import sys
 
 stop_words = set(stopwords.words("english"))
 stop_words.add("-")
 lemmatizer = WordNetLemmatizer()
 punctuation = ['!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`', '(', ')',
-               '"', '=', '>', ';', '@', '\'', '*', '+', '?', '_', '...', ',', '--', ':']
+               '"', '=', '>', ';', '@', '\'', '*', '+', '?', '_', '...', ',', '--', ':', '&']
 
 public_client = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
 local_client = Elasticsearch(timeout=30)
@@ -53,15 +55,26 @@ def search(query, slice_no, slices, size, local_bool):
                 break
         return id_labels
 
+    except elasticsearch.exceptions.ConnectionTimeout as error:
+        print('A time-out error occurred during ElasticSearch. This is probably related to server issues'
+              'try again later. \n Full message: \n')
+        print(error)
+        sys.exit("Timeout error ElasticSearch, exiting program.")
+
+    except elasticsearch.exceptions.RequestError as error:
+        print("A read error has occured, faulty input, skipping search and returning empty list.")
+        return []
+
+
+    # except:
+    #     print('An error occurred during ElasticSearch returning empty list')
+    #     return []
+
     except requests.Timeout as error:
         print('An error occurred during ElasticSearch, returning empty list, full error:')
         # print(logger.error({"message": error.message}))
         print(error)
         return []
-
-    # except:
-    #     print('An error occurred during ElasticSearch returning empty list')
-    #     return []
 
 
 def perform_similarity_algorithm(text, synsets):

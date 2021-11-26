@@ -2,7 +2,7 @@ from collections import defaultdict
 import fasttext
 from src.extraction import start_processing_warcs
 from src.entity_generation_ES import entity_generation
-# from src.candidate_selection import candidate_selection
+from src.candidate_selection import candidate_selection
 import argparse
 import pickle
 import sys
@@ -54,9 +54,9 @@ def parse_cmd_arguments():
                                    help="Required if -p == False, create a txt with the names of all the WARC pickle files, "
                                         "seperated by a '\\n' that need to be imported in the program")
 
-    cmd_parser.add_argument('-sl', '--n_slices', type=int, choices=[1, 2, 3, 4], required='-p' in sys.argv,
+    cmd_parser.add_argument('-sl', '--n_slices', type=int, choices=[1, 2, 3, 4, 5, 6], required='-p' in sys.argv,
                             help="Required if -p == True, define how many parallel processes the program will run when "
-                                 "processing the warc file(s). Choose from 1, 2, 3 or 4 slices.")
+                                 "processing the warc file(s). Choose from 1, 2, 3, 4, 5 or 6 slices.")
 
     parsed = cmd_parser.parse_args()
     if parsed.process_warcs is None:
@@ -176,6 +176,14 @@ def generate_and_save_entities(warcs, slice_no, slices, local_bool):
     return dict_of_candidates
 
 def disambiguate_entities( warc_texts, candidate_dict, method='popularity' ):
+    '''
+    Tries to rank the URI's by disambiguating the entities obtained through ElasticSearch
+
+    :param warc_texts: a list of dictionaries containing the webpage-id's and corresponding entities
+    :param candidate_dict: a dictionary with all results of the ElasticSearch
+    :param method: The method to be used, the default is 'popularity'
+    :return: returns a list of triples, containing the web page id, the entity and the wikidata URI
+    '''
 
     start = time.perf_counter()
 
@@ -198,9 +206,10 @@ if __name__ == '__main__':
     '''
 
     lang_det = fasttext.load_model('lid.176.ftz')
-    slices = 5
 
     warc_bool, es_bool, fw, model, archives_to_process, local_bool, n_slices = parse_cmd_arguments()
+
+
 
     if warc_bool:
         list_of_warcnames = start_processing_warcs(archives_to_process)
@@ -210,12 +219,12 @@ if __name__ == '__main__':
 
     warc_texts = read_all_warcs(list_of_warcnames)
 
-    subdicts = split_mention_dict(warc_texts[0], slices)
-    slice_list = [slices]*slices
+    subdicts = split_mention_dict(warc_texts[0], n_slices)
+    slice_list = [n_slices]*n_slices
 
     if es_bool:
-        pool = Pool(slices)
-        pooled_processes = pool.starmap(generate_and_save_entities, zip(subdicts, range(slices), slice_list, repeat(local_bool)))
+        pool = Pool(n_slices)
+        pooled_processes = pool.starmap(generate_and_save_entities, zip(subdicts, range(n_slices), slice_list, repeat(local_bool)))
 
         merged_processes = merge_pooled_processes(pooled_processes)
 
