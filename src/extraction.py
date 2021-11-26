@@ -20,9 +20,7 @@ nlp = spacy.load('en_core_web_md')
 # define some constants regarding where the WARC record IDs can be found
 # as well as which NER labels we are filtering for
 KEYNAME = 'WARC-Record-ID'
-TARGET_LABELS = {'GPE', 'LOC',
-                 'ORG', 'PERSON', 'PRODUCT', 'WORK_OF_ART',
-                 'LAW', 'FAC'}  # TODO: removed EVENT and NORP and LANGUAGE
+TARGET_LABELS = {'GPE', 'LOC', 'ORG', 'PERSON', 'PRODUCT', 'WORK_OF_ART', 'LAW', 'FAC'}  # TODO: removed EVENT and NORP and LANGUAGE
 
 # exceptions we decided to exclude due to their frequency and lack of relevance
 EXCEPTIONS = {'WARC-Type', 'GMTCache-Control', 'User-AgentConnection', 'GTMContent-Type', 'ul li' '9px',"WARC-Targ", "h3", "WARC-Target"}
@@ -33,8 +31,6 @@ EXCEPTIONS = {re_compile(x) for x in EXCEPTIONS}
 PUNCTUATION = {'!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`', '(', ')',
                '"', '=', '>', ';', '@', '\'', '*', '+', '?', '_', '...', ',', '--', ':'}
 STR_PUNCTUATION = ''.join([punct for punct in PUNCTUATION])
-
-# list_of_filenames = []
 
 
 def split_records(stream):
@@ -163,7 +159,6 @@ def process_archive(archive_path):
     :return: None, it writes out the entities in the outputs folder
     """
     basename = os.path.basename(archive_path).rstrip('.warc.gz')
-    # list_of_filenames.append(basename + "_entities.pkl")
     counter = 0
     output_dict = dict()
     with gzip.open(archive_path, 'rt', errors='ignore', encoding='utf8') as stream:

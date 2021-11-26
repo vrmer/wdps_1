@@ -30,13 +30,22 @@ Our code starts by parsing the arguments of the commandline/terminal. For more i
 
 In this section, the rational of all major code snippets (src folder) will be explained.
 
-### Importing and reading WARC files
+### Importing and Reading WARC files and Extracting Candidate Mentions
 
-TODO
+Our first task is to process the WARC archives, splitting into individual records. This allows us to process the records one by one, extracting all mentions of entities and their context. When multiple archive files are processed, we carry out these steps in a parallel fashion.
 
-### Recognizing Mentions of Named Entities in Text through Spacy
+#### Filter for English Text
 
-After reading in the WARC files and extracting the texts, the named entities in the text are extracted with the off-the-shelf Named Entity Recognition component of Spacy pipeline. We opted for Spacy's small English pipeline trained on Web texts. It is a transformer-based pipeline that uses pre-trained RoBERTa base. Spacy's Named Entitiy Recognizer is readily available and one of the state-of-art modules for linguistic processing. - ADD INFO ON WHICH CLASSES WE INCLUDED
+The crawled records are noisy. Most of this noise originates from a few sources. First, website content does not only include HTML, which in practice contains the continuous text we extract mention from, but also CSS and JavaScript. This can be partially addressed using the BeautifulSoup library which allows us to filter for the website bodies which in principle should not contain style or script. In practice, however, we decided to only process records that contain the <!DOCTYPE html> tag due to the abundance of examples where CSS and JavaScript are in the website body. However, it is possible for content with this tag to contain code. A second source of noise is the record language. The returned texts are in a multitude of different languages, but our scope only covers English. To filter for solely English content, we employ the language detection model from the fastText library. This is, however, not without errors, especially when there is code switching. Finally, we occasionally run into encoding errors where specific Unicode encodings and ASCII escape characters show up in the WARC records. These ones we address by explicit filtering.
+
+#### Extract Candidate Mentions
+
+Only when a WARC record contains continuous English text is when we apply the rest of the pipeline. For this we use the spaCy library whose models often reach state-of-the-art performance. We define a single sentence as a mention context. To be able to both retrieve candidate mentions and their contexts, we use spaCy to carry out sentence splitting, and then its named entity recognition module to extract the specific mentions. Here, we have to make a few considerations. First, spaCy identifies entity types we do not consider as proper mentions. These include words referring to numbers such as CARDINAL, QUANTITY, PERCENT, and ORDINAL, but also date and time (DATE and TIME, respectively). There are also fringe cases such as EVENT, MONEY, LANGUAGE, and NORP. After observing the candidate mentions returned for these entity types, we decided neither of these are relevant for our tasks so we excluded them. This means we are only focusing on these entity types: GPE (geo-political entities), LOC (locations), ORG (organizations), PERSON (person names), PRODUCT, WORK_OF_ART, LAW, and FAC.
+
+The second consideration is related to our inability to exclude all instances of CSS and JavaScript. Both these languages contain many special characters such as “=”, “;”, or “{}”. Tokens containing special characters are often erroneously identified as candidate mentions by spaCy. To address this problem, we maintain a list of symbols so if a candidate mention contains any of these symbols, we can exclude them. Even this filtering does not allow us to reliably identify reoccurring strings that might get identified as candidate mentions. To do that, we also maintain a list of these strings, mostly containing tokens from the crawling metadata such as WARC-Type. The final issue is related to errors in the tokenization of the WARC records, the source of which is likely in the crawling process. It is very common that neighbouring words are not separated by whitespaces, instead they conflate into a single word. The resulting string often has an idiosyncratic capitalization pattern, making spaCy identify it as a candidate mention, for instance “isMillenial Media”, “FRINGEBarcelona”, and “ConditionsContact”. This is a common phenomenon which we have no way of addressing.
+
+Nevertheless, we extract each identified mention in the form of a tuple containing the mention, the entity type spaCy identifies it with, as well as the context, i.e., the sentence it appears in. These are then added to an output dictionary where the keys are the URI ids of the records, and the values are lists of these tuples.
+
 
 ### Generating Candidate Entities through ElasticSearch
 
