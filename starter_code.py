@@ -50,6 +50,10 @@ def parse_cmd_arguments():
                                    help="Required if -p == False, create a txt with the names of all the WARC pickle files, "
                                         "seperated by a '\\n' that need to be imported in the program")
 
+    cmd_parser.add_argument('-sl', '--n_slices', type=int, choices=[1, 2, 3, 4], required='-p' in sys.argv,
+                            help="Required if -p == True, define how many parallel processes the program will run when "
+                                 "processing the warc file(s). Choose from 1, 2, 3 or 4 slices.")
+
     parsed = cmd_parser.parse_args()
     if parsed.process_warcs is None:
         warc_bool = True
@@ -61,10 +65,12 @@ def parse_cmd_arguments():
 
     if not warc_bool:
         filename_warcs = parsed.filename_warcs
+        n_slices = None
     else:
         filename_warcs = None
+        n_slices = parsed.n_slices
 
-    return warc_bool, es_bool, filename_warcs, parsed.model_for_ranking,local_bool
+    return warc_bool, es_bool, filename_warcs, parsed.model_for_ranking,local_bool, n_slices
 
 
 def read_all_warcs(list_of_warcs):
@@ -190,7 +196,7 @@ if __name__ == '__main__':
     lang_det = fasttext.load_model('lid.176.ftz')
     slices = 5
 
-    warc_bool, es_bool, fw, model, local_bool = parse_cmd_arguments()
+    warc_bool, es_bool, fw, model, local_bool, n_slices = parse_cmd_arguments()
 
     if warc_bool:
         list_of_warcnames = start_processing_warcs(lang_det)
@@ -212,12 +218,12 @@ if __name__ == '__main__':
         with open('outputs/candidate_dictionary.pkl', 'wb') as f:
             pickle.dump(merged_processes, f)
     else:
-        with open("outputs/candidate_dictionary.pkl", "rb") as f:
+        with open("outputs/candidate_dictionary_5.pkl", "rb") as f:
             candidate_dict = pickle.load(f)
 
     for idx, warc in enumerate(warc_texts):
         output = disambiguate_entities(warc, candidate_dict, model)
 
-        with open(f"results/annotations_' + {list_of_warcnames[idx][:-4]}", 'w') as outfile:
+        with open(f"results/annotations_{list_of_warcnames[idx][:-4]}_{model}", 'w') as outfile:
             for entity_tuple in output:
                 outfile.write(entity_tuple[0] + '\t' + entity_tuple[1] + '\t' + entity_tuple[2] + '\n')

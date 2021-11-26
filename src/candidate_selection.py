@@ -165,7 +165,7 @@ def find_best_match(clean_context, list_of_schemas, list_of_dicts):
         similarity_count = sum( [1 if lemmatizer.lemmatize(word) in clean_context else 0 for word in schema])
         list_of_counts.append(similarity_count)
 
-    return order_list_from_list(list_of_dicts, list_of_counts, True)[0]
+    return order_list_from_list(list_of_dicts, list_of_counts, True)[0]['uri']
 
 
 def get_best_candidate(mention, context, candidates, method, model, tokenizer):
@@ -263,7 +263,6 @@ def candidate_selection(warc_texts, candidate_dict, method):
 
     if method == 'glove':
         MODEL_FILE = 'assets/glove.6B.100d.txt'
-        # if model is not downloaded yet, download it and save it to assets folder
         if not os.path.isfile(MODEL_FILE):
             r = requests.get('http://nlp.stanford.edu/data/glove.6B.zip', allow_redirects=True)
             open(MODEL_FILE, 'wb').write(r.content)
@@ -282,10 +281,11 @@ def candidate_selection(warc_texts, candidate_dict, method):
         model = None
         tokenizer = None
 
+
     output = []
     for text_id, entity_list in warc_texts.items():
         for entity_tuple in entity_list:
-            # extract mention span, its NER label and the sentence it was in
+
             mention, label, context = entity_tuple
 
             if mention not in candidate_dict.keys():
@@ -295,7 +295,6 @@ def candidate_selection(warc_texts, candidate_dict, method):
             if not candidates:
                 continue
 
-            # generate best entity candidate
             best_candidate = get_best_candidate(mention, context, candidates, method, model, tokenizer)
             if not None:
                 output.append((text_id, mention, best_candidate))
