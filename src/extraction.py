@@ -20,7 +20,7 @@ nlp = spacy.load('en_core_web_md')
 # define some constants regarding where the WARC record IDs can be found
 # as well as which NER labels we are filtering for
 KEYNAME = 'WARC-Record-ID'
-TARGET_LABELS = {'GPE', 'LOC', 'ORG', 'PERSON', 'PRODUCT', 'WORK_OF_ART', 'LAW', 'FAC'}  # TODO: removed EVENT and NORP and LANGUAGE
+TARGET_LABELS = {'GPE', 'LOC', 'ORG', 'PERSON', 'PRODUCT', 'WORK_OF_ART', 'LAW', 'FAC'}
 
 # exceptions we decided to exclude due to their frequency and lack of relevance
 EXCEPTIONS = {'WARC-Type', 'GMTCache-Control', 'User-AgentConnection', 'GTMContent-Type', 'ul li' '9px',"WARC-Targ", "h3", "WARC-Target"}
@@ -176,9 +176,7 @@ def process_archive(archive_path):
                         counter += 1
                         if counter % 10 == 0:
                             print(counter)
-                            break
 
-    print(len(output_dict))
     with open(f'outputs/{basename}_entities.pkl', 'wb') as outfile:
         pickle.dump(output_dict, outfile)
     return basename + "_entities.pkl"
@@ -191,36 +189,21 @@ def start_processing_warcs(file_path):
     :param file_path:
     :return:
     """
-    # list_of_filenames = []
-
     file_paths = glob.glob(file_path)
-    print(file_paths)
     processes = len(file_paths)
-    print(processes)
 
-    with get_context('spawn').Pool(processes) as p:
-        list_of_filenames = p.map(process_archive, file_paths)
-
-    # for fp in file_paths:
-    #     filename = process_archive(fp, lang_det)
-    #     list_of_filenames.append(filename)
-
-    # TODO: we should allow to provide filepath here
-    # process_archive('data/sample.warc.gz', lang_det)
+    if processes > 1:
+        with get_context('spawn').Pool(processes) as p:
+            list_of_filenames = p.map(process_archive, file_paths)
+    else:
+        list_of_filenames = process_archive(file_paths[0])
 
     with open("warc_file_names.txt", mode='wt', encoding='utf-8') as f:
         f.write('\n'.join(list_of_filenames))
 
     return list_of_filenames
 
-    # all_paths = glob.glob('data/warcs/**.gz')
-    # processes = len(all_paths)
-    #
-    # with get_context('spawn').Pool(processes) as p:
-    #     p.map(process_archive, all_paths)
-
 
 if __name__ == '__main__':
 
-    # process_archive('data/sample.warc.gz', lang_det)
     start_processing_warcs('data/warcs/**.gz')

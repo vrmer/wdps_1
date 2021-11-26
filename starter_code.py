@@ -1,12 +1,10 @@
-from collections import defaultdict
 import fasttext
 from src.extraction import start_processing_warcs
 from src.entity_generation_ES import entity_generation
 from src.candidate_selection import candidate_selection
-import argparse
 import pickle
-import sys
 import time
+import configparser
 
 def str2bool(string):
     '''
@@ -18,55 +16,25 @@ def str2bool(string):
     return str(string).lower() in ("yes", "true", "t", "1")
 
 
-def parse_cmd_arguments():
-    '''
-    Parses all command line arguments. See the help messages for more information
+def parse_config_arguments():
+    cfg_reader = configparser.ConfigParser()
+    cfg_reader.read_file(open('config.ini'))
+    config = cfg_reader['default']
 
-    :return: booleans and strings used later within the program
-    '''
+    warc_bool = str2bool(config['process_warc'])
+    es_bool = str2bool(config['save_es_results'])
+    local_bool = str2bool(config['local_elasticsearch'])
 
-    cmd_parser =argparse.ArgumentParser(description='Parser for Entity Linking Program')
-
-    cmd_parser.add_argument('-s', '--save_es_results', type=str,
-                        help="Required argument, write 'True' if you want to process and save the candidates "
-                             "of the entity generation, 'False' otherwise")
-
-    cmd_parser.add_argument('-m', '--model_for_ranking', choices=['prominence','lesk','glove','bert'], required=False,
-                            help="Required argument, write which model to use for candidate ranking. Possible options:"
-                            "prominence | lesk | glove | bert, \n Default: prominence")
-
-    cmd_parser.add_argument('-l', '--local', required=True,
-                            help="Required argument, write 'True' if you want to run the local elastic search algorithm,"
-                                 "'False' otherwise")
-
-    cmd_parser.add_argument('-p', '--process_warcs', type=str, required= False,
-                        help="Optional argument, write 'True' if you want to process the warc file(s), False otherwise")
-    #
-    # cmd_parser.add_argument('-a', '--archives_to_process', required=True,
-    #                         help="Required argument, provide the filepath or filepaths to the WARC archives"
-    #                              "you aim to process. Globbing is supported to allow you to go through multiple files.")
-
-    cmd_parser.add_argument('-fp', '--filename_warcs', required='-p' in sys.argv,
-                                   help="Required if -p == False, create a txt with the names of all the WARC pickle files, "
-                                        "seperated by a '\\n' that need to be imported in the program")
-
-    parsed = cmd_parser.parse_args()
-    if parsed.process_warcs is None:
-        warc_bool = True
-    else:
-        warc_bool = str2bool(parsed.process_warcs)
-
-    es_bool = str2bool(parsed.save_es_results)
-    local_bool = str2bool(parsed.local)
-
-    if not warc_bool:
-        filename_warcs = parsed.filename_warcs
+    if warc_bool is False:
+        filename_warcs = config['filename_warcs']
+        warcs_to_process = None
     else:
         filename_warcs = None
+        warcs_to_process = config['warc_archives']
 
-    n_slices = parsed.n_slices
+    model_for_ranking = config['model_for_ranking']
 
-    return warc_bool, es_bool, filename_warcs, parsed.model_for_ranking, local_bool, n_slices
+    return warc_bool, es_bool, local_bool, filename_warcs, warcs_to_process, model_for_ranking
 
 
 def read_all_warcs(list_of_warcs):
@@ -154,12 +122,12 @@ if __name__ == '__main__':
 
     lang_det = fasttext.load_model('lid.176.ftz')
 
-    warc_bool, es_bool, fw, model, local_bool, n_slices = parse_cmd_arguments()
+    warc_bool, es_bool, local_bool, filename_warcs, warcs_to_process, model_for_ranking = parse_config_arguments()
 
     if warc_bool:
-        list_of_warcnames = start_processing_warcs(warc_bool) ### TODO: to change
+        list_of_warcnames = start_processing_warcs(warcs_to_process)
     else:
-        with open(fw) as f:
+        with open(filename_warcs) as f:
             list_of_warcnames = list(f.readlines())
 
     warc_texts = read_all_warcs(list_of_warcnames)
@@ -171,8 +139,8 @@ if __name__ == '__main__':
             candidate_dict = pickle.load(f)
 
     for idx, warc in enumerate(warc_texts):
-        output = disambiguate_entities(warc, candidate_dict, model)
+        output = disambiguate_entities(warc, candidate_dict, model_for_ranking)
 
-        with open(f"results/annotations_{list_of_warcnames[idx][:-4]}_{model}", 'w') as outfile:
+        with open(f"results/annotations_{list_of_warcnames[idx][:-4]}_{model_for_ranking}", 'w') as outfile:
             for entity_tuple in output:
                 outfile.write(entity_tuple[0] + '\t' + entity_tuple[1] + '\t' + entity_tuple[2] + '\n')
