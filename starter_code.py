@@ -2,7 +2,7 @@ from collections import defaultdict
 import fasttext
 from src.extraction import start_processing_warcs
 from src.entity_generation_ES import entity_generation
-from src.candidate_selection import candidate_selection
+# from src.candidate_selection import candidate_selection
 import argparse
 import pickle
 import sys
@@ -46,6 +46,10 @@ def parse_cmd_arguments():
     cmd_parser.add_argument('-p', '--process_warcs', type=str, required= False,
                         help="Optional argument, write 'True' if you want to process the warc file(s), False otherwise")
 
+    cmd_parser.add_argument('-a', '--archives_to_process', required=True,
+                            help="Required argument, provide the filepath or filepaths to the WARC archives"
+                                 "you aim to process. Globbing is supported to allow you to go through multiple files.")
+
     cmd_parser.add_argument('-fp', '--filename_warcs', required='-p' in sys.argv,
                                    help="Required if -p == False, create a txt with the names of all the WARC pickle files, "
                                         "seperated by a '\\n' that need to be imported in the program")
@@ -70,7 +74,7 @@ def parse_cmd_arguments():
         filename_warcs = None
         n_slices = parsed.n_slices
 
-    return warc_bool, es_bool, filename_warcs, parsed.model_for_ranking,local_bool, n_slices
+    return warc_bool, es_bool, filename_warcs, parsed.model_for_ranking, parsed.archives_to_process, local_bool, n_slices
 
 
 def read_all_warcs(list_of_warcs):
@@ -196,10 +200,10 @@ if __name__ == '__main__':
     lang_det = fasttext.load_model('lid.176.ftz')
     slices = 5
 
-    warc_bool, es_bool, fw, model, local_bool, n_slices = parse_cmd_arguments()
+    warc_bool, es_bool, fw, model, archives_to_process, local_bool, n_slices = parse_cmd_arguments()
 
     if warc_bool:
-        list_of_warcnames = start_processing_warcs(lang_det)
+        list_of_warcnames = start_processing_warcs(archives_to_process)
     else:
         with open(fw) as f:
             list_of_warcnames = list(f.readlines())

@@ -1,12 +1,18 @@
 import os
 import re
+import glob
 import gzip
 import spacy
 import pickle
 import fasttext
 import html5lib
 from bs4 import BeautifulSoup
+from multiprocessing import get_context
 
+
+# import language detector
+lang_det = fasttext.load_model('lid.176.ftz')
+fasttext.FastText.eprint = lambda x: None
 
 # loading the spacy language model
 nlp = spacy.load('en_core_web_md')
@@ -25,10 +31,10 @@ EXCEPTIONS = {re_compile(x) for x in EXCEPTIONS}
 
 # punctuation that we exclude when attempting to find entities
 PUNCTUATION = {'!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`', '(', ')',
-               '"', '=', '>', ';', '@', '\'', '*', '+', '?', '_', '...', ',', '--', ':', '\''}
+               '"', '=', '>', ';', '@', '\'', '*', '+', '?', '_', '...', ',', '--', ':', '\'', '&'}
 STR_PUNCTUATION = ''.join([punct for punct in PUNCTUATION])
 
-list_of_filenames = []
+# list_of_filenames = []
 
 
 def split_records(stream):
@@ -48,13 +54,12 @@ def split_records(stream):
     yield payload
 
 
-def filter_for_english_text(payload, lang_det):
+def filter_for_english_text(payload):
     """
     Finds content that contains a <!DOCTYPE html> tag
     and contains English text.
 
     :param payload: an instance of a WARC record
-    :param lang_det:
     :return: a string of text or None if nothing of that kind is found
     """
     out_text = ''
@@ -132,7 +137,7 @@ def extract_key(payload):
     return key
 
 
-def process_payload(payload, lang_det):
+def process_payload(payload):
     """
     Attempts to find a string of English text
     in a WARC record, and if it finds one,
@@ -142,13 +147,13 @@ def process_payload(payload, lang_det):
     :return: a tuple of a record key and text
     """
     key = None
-    text = filter_for_english_text(payload, lang_det)
+    text = filter_for_english_text(payload)
     if text:
         key = extract_key(payload)
     return key, text
 
 
-def process_archive(archive_path, lang_det):
+def process_archive(archive_path):
     """
     Given a path to a WARC archive, it processes its records
     by attempting to extract a string of English text and
@@ -158,14 +163,14 @@ def process_archive(archive_path, lang_det):
     :return: None, it writes out the entities in the outputs folder
     """
     basename = os.path.basename(archive_path).rstrip('.warc.gz')
-    list_of_filenames.append(basename + "_entities.pkl")
+    # list_of_filenames.append(basename + "_entities.pkl")
     counter = 0
     output_dict = dict()
     with gzip.open(archive_path, 'rt', errors='ignore', encoding='utf8') as stream:
         payloads = split_records(stream)
         for payload in payloads:
             if payload.strip():
-                key, text = process_payload(payload, lang_det)
+                key, text = process_payload(payload)
                 if key and text:
                     try:
                         entities = collect_entities(text)
@@ -176,25 +181,51 @@ def process_archive(archive_path, lang_det):
                         counter += 1
                         if counter % 10 == 0:
                             print(counter)
+                            break
 
     print(len(output_dict))
     with open(f'outputs/{basename}_entities.pkl', 'wb') as outfile:
         pickle.dump(output_dict, outfile)
+    return basename + "_entities.pkl"
 
 
-def start_processing_warcs(lang_det):
+def start_processing_warcs(file_path):
+    """
+
+    :param lang_det:
+    :param file_path:
+    :return:
+    """
+    # list_of_filenames = []
+
+    file_paths = glob.glob(file_path)
+    print(file_paths)
+    processes = len(file_paths)
+    print(processes)
+
+    with get_context('spawn').Pool(processes) as p:
+        list_of_filenames = p.map(process_archive, file_paths)
+
+    # for fp in file_paths:
+    #     filename = process_archive(fp, lang_det)
+    #     list_of_filenames.append(filename)
 
     # TODO: we should allow to provide filepath here
-    process_archive('data/sample.warc.gz', lang_det)
+    # process_archive('data/sample.warc.gz', lang_det)
 
     with open("warc_file_names.txt", mode='wt', encoding='utf-8') as f:
         f.write('\n'.join(list_of_filenames))
 
     return list_of_filenames
 
+    # all_paths = glob.glob('data/warcs/**.gz')
+    # processes = len(all_paths)
+    #
+    # with get_context('spawn').Pool(processes) as p:
+    #     p.map(process_archive, all_paths)
+
 
 if __name__ == '__main__':
-    lang_det = fasttext.load_model('lid.176.ftz')
-    fasttext.FastText.eprint = lambda x: None
 
-    process_archive('data/sample.warc.gz', lang_det)
+    # process_archive('data/sample.warc.gz', lang_det)
+    start_processing_warcs('data/warcs/**.gz')
