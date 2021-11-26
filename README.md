@@ -67,7 +67,3 @@ Given these scalability issues, we decided to implement simpler but less computa
 #### Simplified Lesk Algorithm
 
 Another less expensive approach we implement is a method based on the Simplified Lesk Algorithm. It simply counts how many tokens in the sentential context of the mention are also in the wikidata entity description. The entity candidate whose description has the highest overlap with the mention context is the selected candidate. It uses the same methodology described in the section Generating Candidates with ElasticSearch and will thus not be further elaborated here.
-
-## Results
-
-
