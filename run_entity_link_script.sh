@@ -8,7 +8,9 @@ echo "Downloading NLTK datasets ..."
 python3 ./import_nltk_sets.py
 echo "Running script on default values"
 echo "Therefore, all the warc files will be read and saved and all ElasticSearch results will be generated and saved within the 'outputs' folder"
-echo "If this script is ran once without error, you can manually call the command"
-echo "To do this, set -p and -s to 'False', change -l based on your preference"
-echo "Change -m to your preferred model and provide the corresponding txt document for -p."
-python3 ./starter_code.py -p True -s True -l True -m 'popularity' -fp "warc_file_names.txt"
+echo "Please adjust the warc_archives argument in the config.ini file to the filepath or glob pattern you are trying to process though"
+echo "If this script is ran once without error, you can keep on adjusting the config.ini file"
+echo "If the WARC archives are already processed, set process_warc to False"
+echo "If the candidate results are already saved, set save_es_results to False"
+echo "If you want to test another model besides the prominence-based one, put in lesk, glove or bert"
+python3 ./starter_code.py
