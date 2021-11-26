@@ -1,10 +1,12 @@
 from elasticsearch import Elasticsearch
-from elasticsearch_dsl import Search
+import json
 import nltk
 from nltk.corpus import wordnet as wn
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from copy import deepcopy
+
+KBPATH='assets/wikidata-20200203-truthy-uri-tridentdb'
 
 stop_words = set(stopwords.words("english"))
 stop_words.add("-")
@@ -12,11 +14,7 @@ lemmatizer = WordNetLemmatizer()
 punctuation = ['!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`', '(', ')',
                '"', '=', '>', ';', '@', '\'', '*', '+', '?', '_', '...', ',', '--', ':']
 
-public_client = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout =30)
-local_client = Elasticsearch(timeout=30)
-
-
-def search(query, slice_no, slices, size, local_bool):
+def search(query,size):
     """
     Performs Elastic search
 
@@ -24,31 +22,24 @@ def search(query, slice_no, slices, size, local_bool):
     :param size: determines the number of URIs returned from Elastic Search
     :return: a list of URI's from the search process
     """
-    p = { "query" : { "query_string" : { "query" : query } }}
-    if local_bool:
-        s = Search.from_dict(p).using(local_client)
-    else:
-        s = Search.from_dict(p).using(public_client)
-    s = s.extra(slice={"id": slice_no, "max": slices})
+    e = Elasticsearch("http://fs0.das5.cs.vu.nl:10010/", timeout = 30, max_retries=10, retry_on_timeout=True)
+    #e = Elasticsearch('http://localhost:9200')
+    #e = Elasticsearch(timeout=30)
+    p = { "query" : { "query_string" : { "query" : query } }, "size":size}
+    response = e.search(index="wikidata_en", body=json.dumps(p))
+    id_labels = []
+    if response:
+        for hit in response['hits']['hits']:
+            id = hit['_id']
 
-    id_labels =[]
+            if "rdfs_label" not in hit['_source']:
+                continue
 
-    for idx, stuff in enumerate(s.scan()):
-        hit = stuff.to_dict()
-
-        if "rdfs_label" not in hit:
-            continue
-        else:
-            rdfs_label = hit["rdfs_label"]
-
-        id = stuff.meta["id"]
-        name = hit["schema_name"] if "schema_name" in hit else ''
-        description = hit["schema_description"] if "schema_description" in hit else ''
-        uri_dict = {"uri": id, "rdfs": rdfs_label, "name": name, "description": description}
-        id_labels.append(uri_dict)
-        if idx == size:
-            break
-
+            rdfs_label = hit['_source']['rdfs_label']
+            name = hit["_source"]["schema_name"] if "schema_name" in hit["_source"] else ""
+            description = hit['_source']['schema_description'] if "schema_description" in hit['_source'] else ""
+            uri_dict = {"uri": id, "rdfs": rdfs_label, "name": name, "description": description}
+            id_labels.append(uri_dict)
     return id_labels
 
 
@@ -143,7 +134,7 @@ def filter_uris(list_of_uris, entity):
 
     return [x for idx,x in enumerate(list_of_uris) if idx not in to_delete]
 
-def entity_generation(check_entity, context, slice_no, slices, local_bool):
+def entity_generation(check_entity, context):
     """
     Performs the entity generation for all entities and corresponding texts
 
@@ -162,6 +153,7 @@ def entity_generation(check_entity, context, slice_no, slices, local_bool):
             if not context:
                 best_synsets = synsets[:3]
                 best_definition = list( set( get_nouns_from_definition(synsets)[0] ) )
+                search_size = 8
             else:
                 best_synsets, best_definition = perform_similarity_algorithm(context, synsets)
 
@@ -171,21 +163,20 @@ def entity_generation(check_entity, context, slice_no, slices, local_bool):
         list_of_uris = []
 
         for synonym in synonyms:
-            list_es = search("(%s) AND (%s)" % (check_entity, synonym), slice_no, slices, search_size, local_bool)
+            list_es = search("(%s) AND (%s)" % (check_entity, synonym), search_size)
             list_of_uris += list_es
 
             if not list_es:
                 continue
             else:
-                list_of_uris += search(synonym, slice_no, slices, search_size, local_bool)
+                list_of_uris += search(synonym, search_size)
 
     else:
-        #print("No Synsets detected for %s,querying normally" % check_entity)
-        list_of_uris = search(check_entity,slice_no, slices, 30, local_bool)
+        #print("No Synsets detected,querying normally")
+        list_of_uris = search(check_entity,20)
 
     #Find all unique dictionaries in the list and filter the URI
     list_of_uris = [dict(t) for t in {tuple(d.items()) for d in list_of_uris}]
-
     list_of_uris = filter_uris(list_of_uris, check_entity)
 
     '''
@@ -200,3 +191,4 @@ def entity_generation(check_entity, context, slice_no, slices, local_bool):
         ordered_uris = []
 
     return ordered_uris
+

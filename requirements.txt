@@ -9,3 +9,4 @@ nltk==3.6.5
 torch==1.10.0
 transformers==4.12.5
 scipy==1.7.2
+elasticsearch-dsl==7.4.0

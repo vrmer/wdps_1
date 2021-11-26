@@ -2,13 +2,15 @@ from collections import defaultdict
 import fasttext
 from src.extraction import start_processing_warcs
 from src.entity_generation_ES import entity_generation
+from src.candidate_selection import candidate_selection
 import argparse
 import pickle
 import sys
 import time
 from itertools import islice
 from multiprocessing import Pool
-
+from itertools import repeat
+import multiprocessing
 
 def str2bool(v):
     return str(v).lower() in ("yes", "true", "t", "1")
@@ -19,16 +21,23 @@ def parse_cmd_arguments():
     cmd_parser =argparse.ArgumentParser(description='Parser for Entity Linking Program')
 
     cmd_parser.add_argument('-s', '--save_es_results', type=str,
-                        help='Required argument, write 1 if you want to process and save the candidates '
-                             'of the entity generation, 0 otherwise')
+                        help="Required argument, write 'True' if you want to process and save the candidates "
+                             "of the entity generation, 'False' otherwise")
+
+    cmd_parser.add_argument('-m', '--model_for_ranking', choices=['popularity','lesk','glove','bert'], required=False,
+                            help="Required argument, write which model to use for candidate ranking. Possible options:"
+                            "popularity | lesk | glove | bert, \n Default: popularity")
+
+    cmd_parser.add_argument('-l', '--local', required=True,
+                            help="Required argument, write 'True' if you want to run the local elastic search algorithm,"
+                                 "'False' otherwise")
 
     cmd_parser.add_argument('-p', '--process_warcs', type=str, required= False,
                         help="Optional argument, write 'True' if you want to process the warc file(s), False otherwise")
 
     cmd_parser.add_argument('-fp', '--filename_warcs', required='-p' in sys.argv,
-                                   help="Required if -p == False, create a txt with the names of all the WARC picle files, "
+                                   help="Required if -p == False, create a txt with the names of all the WARC pickle files, "
                                         "seperated by a '\\n' that need to be imported in the program")
-
 
     parsed = cmd_parser.parse_args()
     if parsed.process_warcs is None:
@@ -37,13 +46,14 @@ def parse_cmd_arguments():
         warc_bool = str2bool(parsed.process_warcs)
 
     es_bool = str2bool(parsed.save_es_results)
+    local_bool = str2bool(parsed.local)
 
     if not warc_bool:
         filename_warcs = parsed.filename_warcs
     else:
         filename_warcs = None
 
-    return warc_bool, es_bool, filename_warcs
+    return warc_bool, es_bool, filename_warcs, parsed.model_for_ranking,local_bool
 
 
 def read_all_warcs(list_of_warcs):
@@ -104,30 +114,72 @@ def merge_pooled_processes(pooled_processes):
                 if uri not in unique_uris:
                     unique_uris.add(uri)
                     merged_processes[target_entity].append(returned_query)
+
     return merged_processes
 
 
-def generate_and_save_entities(warcs, slice_no, slices):
+def generate_and_save_entities(warcs, slice_no, slices, local_bool):
     dict_of_candidates = {}
+    entities_checked = 0
 
-    start = time.time()
-    idx = 0
+    curr_proc = multiprocessing.current_process()
+    print("Starting candidate search for process: ", curr_proc._identity[0])
 
     for warc in warcs:
         for key, entities in warc.items():
             for mention, label, context in entities:
                 if mention not in dict_of_candidates.keys():
-                    list_of_uris = entity_generation(mention, context, slice_no, slices)
+                    # print("Checking entity: ", mention)
+                    list_of_uris = entity_generation(mention, context, slice_no, slices, local_bool)
                     dict_of_candidates[mention] = list_of_uris
-                    print("Entity search completed for: ", mention)
-                    print("Best Result:", list_of_uris if not list_of_uris else list_of_uris[0])
-                    if idx > 200:
-                        print(time.time()-start)
-                        break
-                    else:
-                        idx +=1
+                    entities_checked +=1
+                    # print("Checked entity: ", mention)
+                    # print("Best result: ", list_of_uris[0] if list_of_uris else "Empty")
+
+                    if entities_checked % 200 ==0:
+                        print("Entities checked: ", entities_checked)
+                        if entities_checked % 400 == 0:
+                            curr_proc = multiprocessing.current_process()
+                            print("Saving Temp Candidate_Dict for process id: ", curr_proc._identity[0])
+                            with open('outputs/candidate_dictionary_' + str(curr_proc._identity[0]) + '.pkl', 'wb') as f:
+                                pickle.dump(dict_of_candidates,f)
 
     return dict_of_candidates
+
+def disambiguate_entities( warc_texts, candidate_dict, method='popularity' ):
+
+    start = time.perf_counter()
+
+    output = candidate_selection(warc_texts,candidate_dict,method)
+
+    end = time.perf_counter()
+
+    total_time = end - start
+    print(f'Total time spent in disambiguating: {total_time}')
+
+    return output
+
+
+# def run_lesk_algorithm(warcs, candidates, warc_names):
+#
+#     for idx,warc in enumerate(warcs):
+#         list_of_results = []
+#         for key, entities in warc.items():
+#             for mention, label, context in entities:
+#
+#                 candidate_list = candidates[mention]
+#                 if not candidate_list:
+#                     list_of_results.append( (key, mention, None) )
+#
+#                 schema_list = [x["description"] for x in candidate_list]
+#                 clean_schema_list = extract_nouns_schemas(schema_list)
+#                 clean_context = extract_nouns_schemas([context])
+#                 best_uri = find_best_match(clean_context, clean_schema_list, candidate_list)
+#
+#                 list_of_results.append( (key, mention, best_uri) )
+#
+#         with open('results/annotations_' + warc_names[idx], 'wb') as f:
+#             pickle.dump(list_of_results, f)
 
 
 if __name__ == '__main__':
@@ -135,7 +187,7 @@ if __name__ == '__main__':
     lang_det = fasttext.load_model('lid.176.ftz')
     slices = 5
 
-    warc_bool, es_bool, fw = parse_cmd_arguments()
+    warc_bool, es_bool, fw, model, local_bool = parse_cmd_arguments()
 
     if warc_bool:
         list_of_warcnames = start_processing_warcs(lang_det)
@@ -150,7 +202,7 @@ if __name__ == '__main__':
 
     if es_bool:
         pool = Pool(slices)
-        pooled_processes = pool.starmap(generate_and_save_entities, zip(subdicts, range(slices), slice_list))
+        pooled_processes = pool.starmap(generate_and_save_entities, zip(subdicts, range(slices), slice_list, repeat(local_bool)))
 
         merged_processes = merge_pooled_processes(pooled_processes)
 
@@ -159,3 +211,21 @@ if __name__ == '__main__':
     else:
         with open("outputs/candidate_dictionary.pkl", "rb") as f:
             candidate_dict = pickle.load(f)
+
+    # if model == "lesk":
+    #     run_lesk_algorithm(warc_texts, candidate_dict, list_of_warcnames)
+    #
+    # else:
+    #     pass
+    #     for idx, warc in enumerate(warc_texts):
+    #         output = disambiguate_entities(warc, candidate_dict, model)
+    #
+    #         with open(f"results/annotations_' + {list_of_warcnames[idx][:-4]}", 'w') as outfile:
+    #             for entity_tuple in output:
+    #                 outfile.write(entity_tuple[0] + '\t' + entity_tuple[1] + '\t' + entity_tuple[2] + '\n')
+
+    # d = 'results'
+    # sample_file = 'annotations_sample_entities'
+    # files = os.listdir('results')
+    # if sample_file in files:
+    #     get_performance('data/sample_annotations.tsv',os.path.join(d, sample_file))

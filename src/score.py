@@ -48,4 +48,4 @@ def get_performance (gold_file,pred_file):
     print('f1: %s' % f1 )
 
 # get_performance('data/sample_annotations.tsv', 'data/sample-labels-cheat.txt')
-get_performance('data/sample_annotations.tsv', 'data/annotations_sample_entities.tsv')
+# get_performance('data/sample_annotations.tsv', 'data/annotations_sample_entities.tsv')

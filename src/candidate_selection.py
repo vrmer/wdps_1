@@ -5,6 +5,16 @@ import numpy as np
 from scipy.spatial import distance
 import requests
 import os.path
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+from .entity_generation_ES import order_list_from_list
+
+stop_words = set(stopwords.words("english"))
+stop_words.add("-")
+lemmatizer = WordNetLemmatizer()
+punctuation = ['!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`', '(', ')',
+               '"', '=', '>', ';', '@', '\'', '*', '+', '?', '_', '...', ',', '--', ':']
 
 def get_bert_embedding(text, from_n_layer_on, model, tokenizer):
 
@@ -140,6 +150,22 @@ def get_glove_representation(span,text,glove_model):
 
     return representation
 
+def extract_nouns_schemas(list_of_schemas):
+    is_noun = lambda pos:pos[:2] == "NN"
+    return [ [word for (word,pos) in nltk.pos_tag(nltk.word_tokenize(schema)) \
+            if word.strip() not in stop_words and word.strip() not in punctuation and not word.strip().isdigit() and is_noun ] \
+            for schema in list_of_schemas]
+
+def find_best_match(clean_context, list_of_schemas, list_of_dicts):
+    list_of_counts = []
+
+    for schema in list_of_schemas:
+        similarity_count = sum( [1 if lemmatizer.lemmatize(word) in clean_context else 0 for word in schema])
+        list_of_counts.append(similarity_count)
+
+    return order_list_from_list(list_of_dicts, list_of_counts, True)[0]
+
+
 def get_best_candidate(mention, context, candidates, method, model, tokenizer):
 
     """
@@ -160,11 +186,15 @@ def get_best_candidate(mention, context, candidates, method, model, tokenizer):
 
     if method == 'popularity':
        # candidates in dict are ordered by popularity, thus the first candidate is the best according to popularity
-        if candidates != []:
+        if not candidates:
            best_candidate = candidates[0]['uri']
 
     elif method == 'lesk':
-        pass
+
+        schema_list = [x["description"] for x in candidates]
+        clean_schema_list = extract_nouns_schemas(schema_list)
+        clean_context = extract_nouns_schemas([context])
+        best_uri = find_best_match(clean_context, clean_schema_list, candidates)
 
     elif method == 'bert':
 
@@ -172,7 +202,7 @@ def get_best_candidate(mention, context, candidates, method, model, tokenizer):
 
         max_similarity = 0
 
-        if candidates != []:
+        if not candidates:
             for candidate_dict in candidates:
                 if 'name' in candidate_dict.keys():
                     name = candidate_dict['name']
@@ -192,7 +222,7 @@ def get_best_candidate(mention, context, candidates, method, model, tokenizer):
 
         max_similarity = 0
 
-        if candidates != []:
+        if not candidates:
             for candidate_dict in candidates:
                 if 'name' in candidate_dict.keys():
                     name = candidate_dict['name']
