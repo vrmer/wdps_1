@@ -186,7 +186,7 @@ def get_best_candidate(mention, context, candidates, method, model, tokenizer):
 
     best_candidate = None
 
-    if method == 'popularity':
+    if method == 'prominence':
        # candidates in dict are ordered by popularity, thus the first candidate is the best according to popularity
         best_candidate = candidates[0]['uri']
 
@@ -252,6 +252,9 @@ def candidate_selection(warc_texts, candidate_dict, method):
     :return: returns a list of triples, containing the web page id, the entity and the wikidata URI
     """
 
+    model = None
+    tokenizer = None
+
     if method == 'bert':
         print("Loading DistilBERT Model...")
         MODEL_NAME = 'distilbert-base-uncased'
@@ -277,11 +280,6 @@ def candidate_selection(warc_texts, candidate_dict, method):
         else:
             print('Please download the model glove.6B.100d at <https://nlp.stanford.edu/projects/glove/> and place it in folder --data--')
 
-    if method in ['popularity','lesk']:
-        model = None
-        tokenizer = None
-
-
     output = []
     for text_id, entity_list in warc_texts.items():
         for entity_tuple in entity_list:
@@ -295,7 +293,7 @@ def candidate_selection(warc_texts, candidate_dict, method):
             if not candidates:
                 continue
             best_candidate = get_best_candidate(mention, context, candidates, method, model, tokenizer)
-            if best_candidate != None:
+            if best_candidate is not None:
                 output.append((text_id, mention, best_candidate))
 
     return output

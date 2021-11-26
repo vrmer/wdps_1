@@ -46,6 +46,7 @@ def search(query,size, local):
                 description = hit['_source']['schema_description'] if "schema_description" in hit['_source'] else ""
                 uri_dict = {"uri": id, "rdfs": rdfs_label, "name": name, "description": description}
                 id_labels.append(uri_dict)
+
         return id_labels
 
     except elasticsearch.exceptions.ConnectionTimeout as error:
@@ -56,6 +57,7 @@ def search(query,size, local):
 
     except elasticsearch.exceptions.RequestError as error:
         print("A read error has occured, faulty input, skipping search and returning empty list.")
+        print("Error message: ",  error)
         return []
 
 

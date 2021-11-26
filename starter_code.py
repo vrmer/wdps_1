@@ -7,10 +7,6 @@ import argparse
 import pickle
 import sys
 import time
-from itertools import islice
-from multiprocessing import Pool
-from itertools import repeat
-import multiprocessing
 
 def str2bool(string):
     '''
@@ -35,9 +31,9 @@ def parse_cmd_arguments():
                         help="Required argument, write 'True' if you want to process and save the candidates "
                              "of the entity generation, 'False' otherwise")
 
-    cmd_parser.add_argument('-m', '--model_for_ranking', choices=['popularity','lesk','glove','bert'], required=False,
+    cmd_parser.add_argument('-m', '--model_for_ranking', choices=['prominence','lesk','glove','bert'], required=False,
                             help="Required argument, write which model to use for candidate ranking. Possible options:"
-                            "popularity | lesk | glove | bert, \n Default: popularity")
+                            "prominence | lesk | glove | bert, \n Default: prominence")
 
     cmd_parser.add_argument('-l', '--local', required=True,
                             help="Required argument, write 'True' if you want to run the local elastic search algorithm,"
@@ -53,10 +49,6 @@ def parse_cmd_arguments():
     cmd_parser.add_argument('-fp', '--filename_warcs', required='-p' in sys.argv,
                                    help="Required if -p == False, create a txt with the names of all the WARC pickle files, "
                                         "seperated by a '\\n' that need to be imported in the program")
-
-    cmd_parser.add_argument('-sl', '--n_slices', type=int, choices=[1, 2, 3, 4, 5, 6], required='-p' in sys.argv,
-                            help="Required if -p == True, define how many parallel processes the program will run when "
-                                 "processing the warc file(s). Choose from 1, 2, 3, 4, 5 or 6 slices.")
 
     parsed = cmd_parser.parse_args()
     if parsed.process_warcs is None:
@@ -122,7 +114,7 @@ def generate_and_save_entities(warcs, local_bool):
 
                         if entities_checked % 1000 == 0:
                             print("Saving Temp Candidate_Dict")
-                            with open('outputs/candidate_dictionary.pkl', 'wb') as f:
+                            with open('outputs/temp_candidate_dictionary.pkl', 'wb') as f:
                                 pickle.dump(dict_of_candidates,f)
 
     with open('outputs/candidate_dictionary.pkl', 'wb') as f:
@@ -165,7 +157,7 @@ if __name__ == '__main__':
     warc_bool, es_bool, fw, model, local_bool, n_slices = parse_cmd_arguments()
 
     if warc_bool:
-        list_of_warcnames = start_processing_warcs(warc_bool) ### To change
+        list_of_warcnames = start_processing_warcs(warc_bool) ### TODO: to change
     else:
         with open(fw) as f:
             list_of_warcnames = list(f.readlines())
