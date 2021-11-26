@@ -262,22 +262,22 @@ def candidate_selection(warc_texts, candidate_dict, method):
         print("DistilBERT loaded!")
 
     if method == 'glove':
-        MODEL_FILE = 'assets/glove.6B.100d.txt'
-        if not os.path.isfile(MODEL_FILE):
-            r = requests.get('http://nlp.stanford.edu/data/glove.6B.zip', allow_redirects=True)
-            open(MODEL_FILE, 'wb').write(r.content)
-        print("Loading Glove Model...")
-        model = {}
-        with open(MODEL_FILE, 'r') as f:
-            for line in f:
-                split_line = line.split()
-                word = split_line[0]
-                embedding = np.array(split_line[1:], dtype=np.float64)
-                model[word] = embedding
-        print(f"{len(model)} words loaded!")
-        tokenizer = None
+        MODEL_FILE = 'data/glove.6B.100d.txt'
+        if os.path.isfile(MODEL_FILE):
+            print("Loading Glove Model...")
+            model = {}
+            with open(MODEL_FILE, 'r') as f:
+                for line in f:
+                    split_line = line.split()
+                    word = split_line[0]
+                    embedding = np.array(split_line[1:], dtype=np.float64)
+                    model[word] = embedding
+            print(f"{len(model)} words loaded!")
+            tokenizer = None
+        else:
+            print('Please download the model glove.6B.100d at <https://nlp.stanford.edu/projects/glove/> and place it in folder --data--')
 
-    else: # if method == 'popularity' or 'lesk'
+    if method in ['popularity','lesk']:
         model = None
         tokenizer = None
 
@@ -294,9 +294,8 @@ def candidate_selection(warc_texts, candidate_dict, method):
             candidates = candidate_dict[mention]
             if not candidates:
                 continue
-
             best_candidate = get_best_candidate(mention, context, candidates, method, model, tokenizer)
-            if not None:
+            if best_candidate != None:
                 output.append((text_id, mention, best_candidate))
 
     return output

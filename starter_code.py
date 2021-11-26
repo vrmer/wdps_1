@@ -175,7 +175,7 @@ if __name__ == '__main__':
     if es_bool:
         candidate_dict = generate_and_save_entities(warc_texts, local_bool)
     else:
-        with open("outputs/candidate_dictionary.pkl", "rb") as f:
+        with open("candidate_dictionary.pkl", "rb") as f:
             candidate_dict = pickle.load(f)
 
     for idx, warc in enumerate(warc_texts):
