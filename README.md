@@ -1,4 +1,4 @@
-# Entity Linking Assignment 1 Group 3
+# Assignment 1 Entity Linking ; Group 3
 
 This repository contains the solution of Group 3 for the Entity Linking Assignment from the course Web Processing Data Systems 2021 at VU Amsterdam. Our solution recognizes named entity mentions in Web pages and link them to Wikidata. In the following sections, the installation instructions and coding choices will be further elaborated. Note that this was elaborately tested on Windows specifically, since neither group member owns a Macbook or has a separate linux installation. Therefore, it was not possible to check whether it properly runs on other Operating Systems.  
 
