@@ -45,10 +45,10 @@ def parse_cmd_arguments():
 
     cmd_parser.add_argument('-p', '--process_warcs', type=str, required= False,
                         help="Optional argument, write 'True' if you want to process the warc file(s), False otherwise")
-
-    cmd_parser.add_argument('-a', '--archives_to_process', required=True,
-                            help="Required argument, provide the filepath or filepaths to the WARC archives"
-                                 "you aim to process. Globbing is supported to allow you to go through multiple files.")
+    #
+    # cmd_parser.add_argument('-a', '--archives_to_process', required=True,
+    #                         help="Required argument, provide the filepath or filepaths to the WARC archives"
+    #                              "you aim to process. Globbing is supported to allow you to go through multiple files.")
 
     cmd_parser.add_argument('-fp', '--filename_warcs', required='-p' in sys.argv,
                                    help="Required if -p == False, create a txt with the names of all the WARC pickle files, "
@@ -69,12 +69,12 @@ def parse_cmd_arguments():
 
     if not warc_bool:
         filename_warcs = parsed.filename_warcs
-        n_slices = None
     else:
         filename_warcs = None
-        n_slices = parsed.n_slices
 
-    return warc_bool, es_bool, filename_warcs, parsed.model_for_ranking, parsed.archives_to_process, local_bool, n_slices
+    n_slices = parsed.n_slices
+
+    return warc_bool, es_bool, filename_warcs, parsed.model_for_ranking, local_bool, n_slices
 
 
 def read_all_warcs(list_of_warcs):
@@ -94,84 +94,39 @@ def read_all_warcs(list_of_warcs):
     return list_of_texts
 
 
-def split_mention_dict(mention_dict, slices):
-    """
-    Takes a dictionary containing mentions extracted
-    from WARC records and splits into a number of slices.
-
-    :param mention_dict: a dictionary containing mentions extracted from WARC records
-    :param slices: a predetermined number of slices the mention_dict will be split into
-    :return: a list containing the sliced mention dictionaries
-    """
-    sliced_mention_dicts = []
-    slice_size = int(len(mention_dict) / slices)
-    prev_idx = 0
-
-    for i in range(0, len(mention_dict), slice_size):
-        sliced_dict = {k: mention_dict[k] for k in islice(mention_dict, prev_idx, prev_idx + slice_size)}
-        sliced_mention_dicts.append([sliced_dict])
-        prev_idx += slice_size
-    return sliced_mention_dicts
-
-
-def merge_pooled_processes(pooled_processes):
-    """
-    Merges the outcome of pooled processes resulting from
-    carrying out multiprocessing to query the Elasticsearch.
-
-    :param pooled_processes: a list containing the output of pooled processes
-    :return: a dictionary containing all candidate entities extracted by the processes
-    """
-    unique_uris = set()
-    merged_processes = defaultdict(list)
-
-    for pooled_process in pooled_processes:
-        for target_entity, returned_queries in pooled_process.items():
-            for returned_query in returned_queries:
-                uri = returned_query['uri']
-                if uri not in unique_uris:
-                    unique_uris.add(uri)
-                    merged_processes[target_entity].append(returned_query)
-
-    return merged_processes
-
-
-def generate_and_save_entities(warcs, slice_no, slices, local_bool):
+def generate_and_save_entities(warcs, local_bool):
     '''
     Generates and saves the entities found through elasticsearch.
-    This process is parallelized for both the elasticsearch server and the current program.
+    Every 1000 entities, progress will be saved, so that stuff can still be tested if anything goes wrong.
 
     :param warcs: a list of all warc dictionaries (1 dict per warc file)
-    :param slice_no: ??
-    :param slices: ??
     :param local_bool: Indicates whether the elasticsearch should be run through a local or public client
     :return: a dict of all candidates
     '''
 
+    print("Starting Entity Generation Process")
+
     dict_of_candidates = {}
     entities_checked = 0
-
-    curr_proc = multiprocessing.current_process()
-    print("Starting candidate search for process: ", curr_proc._identity[0])
 
     for warc in warcs:
         for key, entities in warc.items():
             for mention, label, context in entities:
                 if mention not in dict_of_candidates.keys():
-                    # print("Checking entity: ", mention)
-                    list_of_uris = entity_generation(mention, context, slice_no, slices, local_bool)
+                    list_of_uris = entity_generation(mention, context, local_bool)
                     dict_of_candidates[mention] = list_of_uris
                     entities_checked +=1
-                    # print("Checked entity: ", mention)
-                    # print("Best result: ", list_of_uris[0] if list_of_uris else "Empty")
 
                     if entities_checked % 200 ==0:
                         print("Entities checked: ", entities_checked)
-                        if entities_checked % 400 == 0:
-                            curr_proc = multiprocessing.current_process()
-                            print("Saving Temp Candidate_Dict for process id: ", curr_proc._identity[0])
-                            with open('outputs/candidate_dictionary_' + str(curr_proc._identity[0]) + '.pkl', 'wb') as f:
+
+                        if entities_checked % 1000 == 0:
+                            print("Saving Temp Candidate_Dict")
+                            with open('outputs/candidate_dictionary.pkl', 'wb') as f:
                                 pickle.dump(dict_of_candidates,f)
+
+    with open('outputs/candidate_dictionary.pkl', 'wb') as f:
+        pickle.dump(dict_of_candidates, f)
 
     return dict_of_candidates
 
@@ -207,31 +162,20 @@ if __name__ == '__main__':
 
     lang_det = fasttext.load_model('lid.176.ftz')
 
-    warc_bool, es_bool, fw, model, archives_to_process, local_bool, n_slices = parse_cmd_arguments()
-
-
+    warc_bool, es_bool, fw, model, local_bool, n_slices = parse_cmd_arguments()
 
     if warc_bool:
-        list_of_warcnames = start_processing_warcs(archives_to_process)
+        list_of_warcnames = start_processing_warcs(warc_bool) ### To change
     else:
         with open(fw) as f:
             list_of_warcnames = list(f.readlines())
 
     warc_texts = read_all_warcs(list_of_warcnames)
 
-    subdicts = split_mention_dict(warc_texts[0], n_slices)
-    slice_list = [n_slices]*n_slices
-
     if es_bool:
-        pool = Pool(n_slices)
-        pooled_processes = pool.starmap(generate_and_save_entities, zip(subdicts, range(n_slices), slice_list, repeat(local_bool)))
-
-        merged_processes = merge_pooled_processes(pooled_processes)
-
-        with open('outputs/candidate_dictionary.pkl', 'wb') as f:
-            pickle.dump(merged_processes, f)
+        candidate_dict = generate_and_save_entities(warc_texts, local_bool)
     else:
-        with open("outputs/candidate_dictionary_5.pkl", "rb") as f:
+        with open("outputs/candidate_dictionary.pkl", "rb") as f:
             candidate_dict = pickle.load(f)
 
     for idx, warc in enumerate(warc_texts):

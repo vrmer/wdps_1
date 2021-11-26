@@ -11,4 +11,4 @@ echo "Therefore, all the warc files will be read and saved and all ElasticSearch
 echo "If this script is ran once without error, you can manually call the command"
 echo "To do this, set -p and -s to 'False', change -l based on your preference"
 echo "Change -m to your preferred model and provide the corresponding txt document for -p."
-python3 ./starter_code.py -p True -fp "warc_file_names.txt" -s True -f True -m 'popularity'
+python3 ./starter_code.py -p True -s True -l True -m 'popularity' -fp "warc_file_names.txt"

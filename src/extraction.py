@@ -11,8 +11,8 @@ from multiprocessing import get_context
 
 
 # import language detector
-lang_det = fasttext.load_model('lid.176.ftz')
 fasttext.FastText.eprint = lambda x: None
+lang_det = fasttext.load_model('lid.176.ftz')
 
 # loading the spacy language model
 nlp = spacy.load('en_core_web_md')
@@ -31,7 +31,7 @@ EXCEPTIONS = {re_compile(x) for x in EXCEPTIONS}
 
 # punctuation that we exclude when attempting to find entities
 PUNCTUATION = {'!', '/', '%', '|', '\\', ']', '[', '^', '<', '{', '}', '~', '`', '(', ')',
-               '"', '=', '>', ';', '@', '\'', '*', '+', '?', '_', '...', ',', '--', ':', '\'', '&'}
+               '"', '=', '>', ';', '@', '\'', '*', '+', '?', '_', '...', ',', '--', ':'}
 STR_PUNCTUATION = ''.join([punct for punct in PUNCTUATION])
 
 # list_of_filenames = []
