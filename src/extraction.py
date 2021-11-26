@@ -175,7 +175,7 @@ def process_archive(archive_path):
                         output_dict[key] = entities
                         counter += 1
                         if counter % 10 == 0:
-                            print(counter)
+                            print(f'Number of contents found: {counter}')
 
     with open(f'outputs/{basename}_entities.pkl', 'wb') as outfile:
         pickle.dump(output_dict, outfile)
@@ -184,8 +184,9 @@ def process_archive(archive_path):
 
 def start_processing_warcs(file_path):
     """
+    Provided its filepath, it processes a WARC archive
+    or a list of archives in case a globbable pattern is provided.
 
-    :param lang_det:
     :param file_path:
     :return:
     """
@@ -206,4 +207,4 @@ def start_processing_warcs(file_path):
 
 if __name__ == '__main__':
 
-    start_processing_warcs('data/warcs/**.gz')
+    start_processing_warcs('data/sample.warc.gz')
