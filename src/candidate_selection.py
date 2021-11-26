@@ -151,12 +151,14 @@ def get_glove_representation(span,text,glove_model):
     return representation
 
 def extract_nouns_schemas(list_of_schemas):
+
     is_noun = lambda pos:pos[:2] == "NN"
     return [ [word for (word,pos) in nltk.pos_tag(nltk.word_tokenize(schema)) \
             if word.strip() not in stop_words and word.strip() not in punctuation and not word.strip().isdigit() and is_noun ] \
             for schema in list_of_schemas]
 
 def find_best_match(clean_context, list_of_schemas, list_of_dicts):
+
     list_of_counts = []
 
     for schema in list_of_schemas:
@@ -238,6 +240,18 @@ def get_best_candidate(mention, context, candidates, method, model, tokenizer):
 
 def candidate_selection(warc_texts, candidate_dict, method):
 
+    """
+    Given text files and dictionary of entity candidates, call get_best_candidate for each mention in each text
+    with the method specified on method parameter. Tries to rank the URI's by disambiguating the entities obtained through ElasticSearch
+    If method is a language model, load the language model for further processing.
+
+    :param warc_texts: a list of dictionaries containing the webpage-id's and corresponding entities
+    :param candidate_dict: a dictionary with all results of the ElasticSearch
+    :param method: The method to be used, the default is 'popularity'
+
+    :return: returns a list of triples, containing the web page id, the entity and the wikidata URI
+    """
+
     if method == 'bert':
         print("Loading DistilBERT Model...")
         MODEL_NAME = 'distilbert-base-uncased'
@@ -269,13 +283,10 @@ def candidate_selection(warc_texts, candidate_dict, method):
         tokenizer = None
 
     output = []
-    # for each text in warc file
     for text_id, entity_list in warc_texts.items():
-        # for each named entity mention found
         for entity_tuple in entity_list:
-                # extract mention span, its NER label and the sentence it was in
+            # extract mention span, its NER label and the sentence it was in
             mention, label, context = entity_tuple
-            # get the entity candidates for that mention
 
             if mention not in candidate_dict.keys():
                 continue

@@ -1,3 +1,4 @@
+import requests
 from elasticsearch import Elasticsearch
 from elasticsearch_dsl import Search
 import nltk
@@ -24,32 +25,43 @@ def search(query, slice_no, slices, size, local_bool):
     :param size: determines the number of URIs returned from Elastic Search
     :return: a list of URI's from the search process
     """
-    p = { "query" : { "query_string" : { "query" : query } }}
-    if local_bool:
-        s = Search.from_dict(p).using(local_client)
-    else:
-        s = Search.from_dict(p).using(public_client)
-    s = s.extra(slice={"id": slice_no, "max": slices})
 
-    id_labels =[]
-
-    for idx, stuff in enumerate(s.scan()):
-        hit = stuff.to_dict()
-
-        if "rdfs_label" not in hit:
-            continue
+    try:
+        p = { "query" : { "query_string" : { "query" : query } }}
+        if local_bool:
+            s = Search.from_dict(p).using(local_client)
         else:
-            rdfs_label = hit["rdfs_label"]
+            s = Search.from_dict(p).using(public_client)
+        s = s.extra(slice={"id": slice_no, "max": slices})
 
-        id = stuff.meta["id"]
-        name = hit["schema_name"] if "schema_name" in hit else ''
-        description = hit["schema_description"] if "schema_description" in hit else ''
-        uri_dict = {"uri": id, "rdfs": rdfs_label, "name": name, "description": description}
-        id_labels.append(uri_dict)
-        if idx == size:
-            break
+        id_labels =[]
 
-    return id_labels
+        for idx, stuff in enumerate(s.scan()):
+            hit = stuff.to_dict()
+
+            if "rdfs_label" not in hit:
+                continue
+            else:
+                rdfs_label = hit["rdfs_label"]
+
+            id = stuff.meta["id"]
+            name = hit["schema_name"] if "schema_name" in hit else ''
+            description = hit["schema_description"] if "schema_description" in hit else ''
+            uri_dict = {"uri": id, "rdfs": rdfs_label, "name": name, "description": description}
+            id_labels.append(uri_dict)
+            if idx == size:
+                break
+        return id_labels
+
+    except requests.Timeout as error:
+        print('An error occurred during ElasticSearch, returning empty list, full error:')
+        # print(logger.error({"message": error.message}))
+        print(error)
+        return []
+
+    # except:
+    #     print('An error occurred during ElasticSearch returning empty list')
+    #     return []
 
 
 def perform_similarity_algorithm(text, synsets):

@@ -221,9 +221,3 @@ if __name__ == '__main__':
         with open(f"results/annotations_' + {list_of_warcnames[idx][:-4]}", 'w') as outfile:
             for entity_tuple in output:
                 outfile.write(entity_tuple[0] + '\t' + entity_tuple[1] + '\t' + entity_tuple[2] + '\n')
-
-    # d = 'results'
-    # sample_file = 'annotations_sample_entities'
-    # files = os.listdir('results')
-    # if sample_file in files:
-    #     get_performance('data/sample_annotations.tsv',os.path.join(d, sample_file))
