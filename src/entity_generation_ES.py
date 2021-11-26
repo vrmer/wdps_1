@@ -190,7 +190,6 @@ def entity_generation(check_entity, context, local):
                 list_of_uris += search(synonym, search_size, local)
 
     else:
-        #print("No Synsets detected,querying normally")
         list_of_uris = search(check_entity,30, local)
 
     #Find all unique dictionaries in the list and filter the URI

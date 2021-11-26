@@ -3,7 +3,6 @@ from transformers import DistilBertTokenizer, DistilBertModel, DistilBertConfig
 from nltk.tokenize import word_tokenize
 import numpy as np
 from scipy.spatial import distance
-import requests
 import os.path
 import nltk
 from nltk.corpus import stopwords

@@ -10,10 +10,6 @@ def load_file(filepath):
 
 def get_performance (gold_file,pred_file):
 
-    # # Load gold annotations and predictions
-    # gold = load_file(gold_file)
-    # pred = load_file(pred_file)
-
     gold = {}
     for line in open(gold_file):
         record, string, entity = line.strip().split('\t', 2)
@@ -28,12 +24,6 @@ def get_performance (gold_file,pred_file):
     n_predicted = len(pred)
     print('gold: %s' % n_gold)
     print('predicted: %s' % n_predicted)
-
-    # print(set(gold))
-    # for i in set(gold) & set(pred):
-    #     print(i)
-    #     print(pred[i])
-    #     print(gold[i])
 
     # Evaluate predictions
     n_correct = sum( int(pred[i]==gold[i]) for i in set(gold) & set(pred) )

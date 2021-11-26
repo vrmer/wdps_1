@@ -17,12 +17,18 @@ def str2bool(string):
 
 
 def parse_config_arguments():
+    '''
+    Reads all the config arguments
+
+    :return: returns config file values.
+    '''
+
     cfg_reader = configparser.ConfigParser()
     cfg_reader.read_file(open('config.ini'))
     config = cfg_reader['default']
 
     warc_bool = str2bool(config['process_warc'])
-    es_bool = str2bool(config['save_es_results'])
+    es_bool = str2bool(config['perform_candidate_generation'])
     local_bool = str2bool(config['local_elasticsearch'])
 
     if warc_bool is False:
