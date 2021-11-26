@@ -178,29 +178,6 @@ def disambiguate_entities( warc_texts, candidate_dict, method='popularity' ):
 
     return output
 
-
-# def run_lesk_algorithm(warcs, candidates, warc_names):
-#
-#     for idx,warc in enumerate(warcs):
-#         list_of_results = []
-#         for key, entities in warc.items():
-#             for mention, label, context in entities:
-#
-#                 candidate_list = candidates[mention]
-#                 if not candidate_list:
-#                     list_of_results.append( (key, mention, None) )
-#
-#                 schema_list = [x["description"] for x in candidate_list]
-#                 clean_schema_list = extract_nouns_schemas(schema_list)
-#                 clean_context = extract_nouns_schemas([context])
-#                 best_uri = find_best_match(clean_context, clean_schema_list, candidate_list)
-#
-#                 list_of_results.append( (key, mention, best_uri) )
-#
-#         with open('results/annotations_' + warc_names[idx], 'wb') as f:
-#             pickle.dump(list_of_results, f)
-
-
 if __name__ == '__main__':
     '''
     Main program
@@ -209,7 +186,6 @@ if __name__ == '__main__':
         - Performs a parallel elastic search
         - Write results in corresponding files
     '''
-
 
     lang_det = fasttext.load_model('lid.176.ftz')
     slices = 5
@@ -239,17 +215,12 @@ if __name__ == '__main__':
         with open("outputs/candidate_dictionary.pkl", "rb") as f:
             candidate_dict = pickle.load(f)
 
-    # if model == "lesk":
-    #     run_lesk_algorithm(warc_texts, candidate_dict, list_of_warcnames)
-    #
-    # else:
-    #     pass
-    #     for idx, warc in enumerate(warc_texts):
-    #         output = disambiguate_entities(warc, candidate_dict, model)
-    #
-    #         with open(f"results/annotations_' + {list_of_warcnames[idx][:-4]}", 'w') as outfile:
-    #             for entity_tuple in output:
-    #                 outfile.write(entity_tuple[0] + '\t' + entity_tuple[1] + '\t' + entity_tuple[2] + '\n')
+    for idx, warc in enumerate(warc_texts):
+        output = disambiguate_entities(warc, candidate_dict, model)
+
+        with open(f"results/annotations_' + {list_of_warcnames[idx][:-4]}", 'w') as outfile:
+            for entity_tuple in output:
+                outfile.write(entity_tuple[0] + '\t' + entity_tuple[1] + '\t' + entity_tuple[2] + '\n')
 
     # d = 'results'
     # sample_file = 'annotations_sample_entities'

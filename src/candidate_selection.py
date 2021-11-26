@@ -182,19 +182,18 @@ def get_best_candidate(mention, context, candidates, method, model, tokenizer):
     :return: the wikidata uri of candidate entity with highest similarity score to the mention
     """
 
-    best_candidate = 'NIL'
+    best_candidate = None
 
     if method == 'popularity':
        # candidates in dict are ordered by popularity, thus the first candidate is the best according to popularity
-        if not candidates:
-           best_candidate = candidates[0]['uri']
+        best_candidate = candidates[0]['uri']
 
     elif method == 'lesk':
 
         schema_list = [x["description"] for x in candidates]
         clean_schema_list = extract_nouns_schemas(schema_list)
         clean_context = extract_nouns_schemas([context])
-        best_uri = find_best_match(clean_context, clean_schema_list, candidates)
+        best_candidate = find_best_match(clean_context, clean_schema_list, candidates)
 
     elif method == 'bert':
 
@@ -202,19 +201,18 @@ def get_best_candidate(mention, context, candidates, method, model, tokenizer):
 
         max_similarity = 0
 
-        if not candidates:
-            for candidate_dict in candidates:
-                if 'name' in candidate_dict.keys():
-                    name = candidate_dict['name']
-                else:
-                    name = candidate_dict['rdfs']
-                description = candidate_dict['description']
-                candidate_vector = get_bert_representation(name, description, model, tokenizer)
+        for candidate_dict in candidates:
+            if 'name' in candidate_dict.keys():
+                name = candidate_dict['name']
+            else:
+                name = candidate_dict['rdfs']
+            description = candidate_dict['description']
+            candidate_vector = get_bert_representation(name, description, model, tokenizer)
 
-                similarity = 1 - distance.cosine(mention_vector, candidate_vector)
-                if similarity > max_similarity:
-                    max_similarity = similarity
-                    best_candidate = candidate_dict['uri']
+            similarity = 1 - distance.cosine(mention_vector, candidate_vector)
+            if similarity > max_similarity:
+                max_similarity = similarity
+                best_candidate = candidate_dict['uri']
 
     elif method == 'glove':
 
@@ -222,19 +220,18 @@ def get_best_candidate(mention, context, candidates, method, model, tokenizer):
 
         max_similarity = 0
 
-        if not candidates:
-            for candidate_dict in candidates:
-                if 'name' in candidate_dict.keys():
-                    name = candidate_dict['name']
-                else:
-                    name = candidate_dict['rdfs']
-                description = candidate_dict['description']
-                candidate_vector = get_glove_representation(name, description, model)
+        for candidate_dict in candidates:
+            if 'name' in candidate_dict.keys():
+                name = candidate_dict['name']
+            else:
+                name = candidate_dict['rdfs']
+            description = candidate_dict['description']
+            candidate_vector = get_glove_representation(name, description, model)
 
-                similarity = 1 - distance.cosine(mention_vector, candidate_vector)
-                if similarity > max_similarity:
-                    max_similarity = similarity
-                    best_candidate = candidate_dict['uri']
+            similarity = 1 - distance.cosine(mention_vector, candidate_vector)
+            if similarity > max_similarity:
+                max_similarity = similarity
+                best_candidate = candidate_dict['uri']
 
     return best_candidate
 
@@ -271,27 +268,25 @@ def candidate_selection(warc_texts, candidate_dict, method):
         model = None
         tokenizer = None
 
-
     output = []
     # for each text in warc file
     for text_id, entity_list in warc_texts.items():
         # for each named entity mention found
         for entity_tuple in entity_list:
-            try:
                 # extract mention span, its NER label and the sentence it was in
-                mention, label, context = entity_tuple
-            except ValueError:
-                print(f'{entity_tuple} not a tuple')
-                exit()
-            try:
-                # get the entity candidates for that mention
-                candidates = candidate_dict[mention]
-            except KeyError:
-                print(f'Mention to be disambiguated "{mention}" not in candidate dictionary')
-                exit()
+            mention, label, context = entity_tuple
+            # get the entity candidates for that mention
+
+            if mention not in candidate_dict.keys():
+                continue
+
+            candidates = candidate_dict[mention]
+            if not candidates:
+                continue
+
             # generate best entity candidate
             best_candidate = get_best_candidate(mention, context, candidates, method, model, tokenizer)
-            # append to output list
-            output.append((text_id, mention, best_candidate))
+            if not None:
+                output.append((text_id, mention, best_candidate))
 
     return output
